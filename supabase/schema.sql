@@ -62,6 +62,66 @@ begin
 end;
 $$;
 
+create or replace function public.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_role public.user_role;
+  v_username text;
+  v_full_name text;
+begin
+  v_role := case
+    when new.raw_user_meta_data ->> 'role' in ('admin', 'teacher', 'student')
+      then (new.raw_user_meta_data ->> 'role')::public.user_role
+    else 'student'
+  end;
+
+  v_username := coalesce(
+    nullif(new.raw_user_meta_data ->> 'username', ''),
+    split_part(lower(new.email), '@', 1)
+  );
+
+  v_full_name := coalesce(
+    nullif(new.raw_user_meta_data ->> 'full_name', ''),
+    nullif(new.raw_user_meta_data ->> 'name', ''),
+    initcap(replace(v_username, '.', ' '))
+  );
+
+  insert into public.profiles (
+    id,
+    full_name,
+    email,
+    username,
+    role,
+    status,
+    created_at,
+    updated_at
+  )
+  values (
+    new.id,
+    v_full_name,
+    new.email,
+    v_username,
+    v_role,
+    'active',
+    now(),
+    now()
+  )
+  on conflict (id) do update
+    set full_name = excluded.full_name,
+        email = excluded.email,
+        username = excluded.username,
+        role = excluded.role,
+        status = 'active',
+        updated_at = now();
+
+  return new;
+end;
+$$;
+
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text not null,
@@ -338,3 +398,8 @@ drop trigger if exists trg_puzzles_updated_at on public.puzzles;
 create trigger trg_puzzles_updated_at
 before update on public.puzzles
 for each row execute function public.set_updated_at();
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute function public.handle_new_auth_user();

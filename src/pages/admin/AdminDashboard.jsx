@@ -59,7 +59,7 @@ export default function AdminDashboard() {
           subtitle="Monitor the CyberEscape ecosystem"
         >
           <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+            <div id="overview" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
               <StatCard label="Total Users" value={loading ? '...' : summary?.totalUsers ?? 0} subtext="Active accounts" accent="cyan" />
               <StatCard label="Teachers" value={loading ? '...' : summary?.teachers ?? 0} subtext="Monitoring classes" accent="purple" />
               <StatCard label="Students" value={loading ? '...' : summary?.students ?? 0} subtext="Registered players" accent="blue" />
@@ -70,6 +70,7 @@ export default function AdminDashboard() {
 
             <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
               <SectionCard
+                id="users"
                 title="User Registration"
                 subtitle="Last 7 Days"
                 action={
@@ -93,7 +94,7 @@ export default function AdminDashboard() {
                 </div>
               </SectionCard>
 
-              <SectionCard title="System Status" subtitle="Realtime health overview">
+              <SectionCard id="settings" title="System Status" subtitle="Realtime health overview">
                 <div className="space-y-4 text-sm text-slate-300">
                   <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">Database connected</div>
                   <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">Authentication active</div>
@@ -104,7 +105,7 @@ export default function AdminDashboard() {
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-              <SectionCard title="Recent Activity" subtitle="Latest CyberEscape events">
+              <SectionCard id="activity" title="Recent Activity" subtitle="Latest CyberEscape events">
                 <div className="space-y-3">
                   {loading ? (
                     <p className="text-slate-400">Loading recent activity...</p>
@@ -124,7 +125,7 @@ export default function AdminDashboard() {
                 </div>
               </SectionCard>
 
-              <SectionCard title="Room Overview" subtitle="Completion rate and average scores">
+              <SectionCard id="rooms" title="Room Overview" subtitle="Completion rate and average scores">
                 <div className="space-y-3">
                   {adminOverview.rooms.map(([room, name, difficulty, status, completionRate, score]) => (
                     <div key={room} className="grid grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm md:grid-cols-6">
@@ -158,7 +159,7 @@ export default function AdminDashboard() {
               </SectionCard>
             </div>
 
-            <SectionCard title="Achievement Badges" subtitle="Live unlocked system achievements">
+            <SectionCard id="achievements" title="Achievement Badges" subtitle="Live unlocked system achievements">
               <div className="flex flex-wrap gap-3">
                 {(summary?.achievementBadges ?? ['First Escape', 'Password Master', 'Phishing Detector']).map((badge) => (
                   <span key={badge} className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-200">

@@ -59,7 +59,7 @@ export default function LoginPage() {
         throw new Error('Please enter your Supabase email address.');
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password: form.password,
       });
@@ -68,9 +68,8 @@ export default function LoginPage() {
         throw signInError;
       }
 
-      await refreshUser();
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData?.session?.user?.id;
+      const sessionUser = signInData?.session?.user ?? null;
+      const userId = sessionUser?.id;
       const { data: profile } = userId
         ? await supabase
             .from('profiles')
@@ -79,8 +78,9 @@ export default function LoginPage() {
             .single()
         : { data: null };
 
-      const role = inferRoleFromSession(sessionData, profile);
+      const role = inferRoleFromSession(signInData, profile);
       if (role) {
+        void refreshUser();
         redirectByRole(role);
       } else {
         throw new Error('Your profile is missing a role.');
