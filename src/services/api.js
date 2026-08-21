@@ -10,6 +10,10 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
+  config.headers = config.headers ?? {};
+  config.headers['X-Request-Id'] =
+    config.headers['X-Request-Id'] || `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
   if (!supabase) {
     return config;
   }
@@ -18,9 +22,37 @@ api.interceptors.request.use(async (config) => {
   const accessToken = data?.session?.access_token;
 
   if (accessToken) {
-    config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
 
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error?.config;
+    const responseMessage = error?.response?.data?.message || '';
+
+    if (
+      originalRequest &&
+      !originalRequest._retry &&
+      error?.response?.status === 401 &&
+      responseMessage === 'Your session has expired.' &&
+      supabase
+    ) {
+      originalRequest._retry = true;
+
+      const { data } = await supabase.auth.refreshSession();
+      const accessToken = data?.session?.access_token;
+
+      if (accessToken) {
+        originalRequest.headers = originalRequest.headers ?? {};
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        return api(originalRequest);
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);

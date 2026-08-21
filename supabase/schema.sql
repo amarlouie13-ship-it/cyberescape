@@ -236,6 +236,47 @@ begin
 end;
 $$;
 
+create or replace function public.ensure_admin_profile()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if lower(new.email) = lower('admin@cyberescape.local') then
+    insert into public.profiles (
+      id,
+      full_name,
+      email,
+      username,
+      role,
+      status,
+      created_at,
+      updated_at
+    )
+    values (
+      new.id,
+      coalesce(nullif(new.raw_user_meta_data ->> 'full_name', ''), 'CyberEscape Admin'),
+      lower(new.email),
+      coalesce(nullif(new.raw_user_meta_data ->> 'username', ''), 'admin'),
+      'admin',
+      'active',
+      coalesce(new.created_at, now()),
+      now()
+    )
+    on conflict (id) do update
+      set full_name = excluded.full_name,
+          email = excluded.email,
+          username = excluded.username,
+          role = 'admin',
+          status = 'active',
+          updated_at = now();
+  end if;
+
+  return new;
+end;
+$$;
+
 create or replace function public.sync_profile_role_membership()
 returns trigger
 language plpgsql
@@ -545,6 +586,11 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_auth_user();
 
+drop trigger if exists trg_ensure_admin_profile on auth.users;
+create trigger trg_ensure_admin_profile
+after insert on auth.users
+for each row execute function public.ensure_admin_profile();
+
 drop trigger if exists on_auth_user_updated on auth.users;
 create trigger on_auth_user_updated
 after update on auth.users
@@ -555,10 +601,51 @@ create trigger trg_profiles_sync_role_membership
 after insert or update of role on public.profiles
 for each row execute function public.sync_profile_role_membership();
 
-do $$
+do $$ 
 begin
   perform public.sync_existing_auth_users();
 exception
   when undefined_table then
     null;
 end $$;
+
+drop policy if exists "profiles admin insert" on public.profiles;
+create policy "profiles admin insert" on public.profiles
+for insert with check (
+  exists (
+    select 1
+    from public.profiles p
+    where p.id = auth.uid()
+      and p.role = 'admin'
+  )
+);
+
+drop policy if exists "profiles admin update" on public.profiles;
+create policy "profiles admin update" on public.profiles
+for update using (
+  exists (
+    select 1
+    from public.profiles p
+    where p.id = auth.uid()
+      and p.role = 'admin'
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.profiles p
+    where p.id = auth.uid()
+      and p.role = 'admin'
+  )
+);
+
+drop policy if exists "profiles admin delete" on public.profiles;
+create policy "profiles admin delete" on public.profiles
+for delete using (
+  exists (
+    select 1
+    from public.profiles p
+    where p.id = auth.uid()
+      and p.role = 'admin'
+  )
+);

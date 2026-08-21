@@ -27,6 +27,12 @@ function buildEmployeeNumber() {
   return `TCH-${randomUUID().slice(0, 8).toUpperCase()}`;
 }
 
+function logAccountPhase(traceId, phase, details = {}) {
+  // Keep logs structured so we can follow account creation step-by-step.
+  // eslint-disable-next-line no-console
+  console.info(`[createUser:${traceId}] ${phase}`, details);
+}
+
 export async function listRooms(_req, res, next) {
   try {
     if (!supabaseAdmin) {
@@ -121,8 +127,10 @@ export async function deletePuzzle(req, res, next) {
 }
 
 export async function createUser(req, res, next) {
+  const traceId = randomUUID().slice(0, 8);
   try {
     if (!supabaseAdmin) {
+      logAccountPhase(traceId, 'config_missing');
       return res.status(501).json({ message: 'Supabase not configured.' });
     }
 
@@ -133,27 +141,45 @@ export async function createUser(req, res, next) {
     const role = String(req.body?.role ?? '').toLowerCase();
     const email = isValidEmail(emailInput) ? emailInput : buildInternalEmail(username);
 
+    logAccountPhase(traceId, 'request_received', {
+      username,
+      role,
+      email,
+      hasPassword: Boolean(password),
+      hasConfirmPassword: Boolean(confirmPassword),
+    });
+
     if (!username || !password || !confirmPassword || !role) {
+      logAccountPhase(traceId, 'validation_failed', { reason: 'missing_fields' });
       return res.status(400).json({ message: 'All fields are required.' });
     }
 
     if (!allowedUserRoles.has(role)) {
+      logAccountPhase(traceId, 'validation_failed', { reason: 'invalid_role', role });
       return res.status(400).json({ message: 'Invalid role.' });
     }
 
     if (password !== confirmPassword) {
+      logAccountPhase(traceId, 'validation_failed', { reason: 'password_mismatch' });
       return res.status(400).json({ message: 'Passwords do not match.' });
     }
 
+    logAccountPhase(traceId, 'checking_existing_profiles');
     const [{ data: existingUsername }, { data: existingEmail }] = await Promise.all([
       supabaseAdmin.from('profiles').select('id').eq('username', username).maybeSingle(),
       supabaseAdmin.from('profiles').select('id').eq('email', email).maybeSingle(),
     ]);
 
     if (existingUsername || existingEmail) {
+      logAccountPhase(traceId, 'validation_failed', {
+        reason: 'duplicate_profile',
+        existingUsername: Boolean(existingUsername),
+        existingEmail: Boolean(existingEmail),
+      });
       return res.status(409).json({ message: 'Username already exists.' });
     }
 
+    logAccountPhase(traceId, 'creating_auth_user');
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -166,6 +192,10 @@ export async function createUser(req, res, next) {
     });
 
     if (authError) {
+      logAccountPhase(traceId, 'auth_create_failed', {
+        message: authError.message,
+        code: authError.code,
+      });
       const message = authError.message?.toLowerCase() ?? '';
       if (message.includes('already registered')) {
         return res.status(409).json({ message: 'Email already exists.' });
@@ -177,7 +207,9 @@ export async function createUser(req, res, next) {
     }
 
     const userId = authData.user.id;
+    logAccountPhase(traceId, 'auth_create_succeeded', { userId });
 
+    logAccountPhase(traceId, 'upserting_profile');
     const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
       id: userId,
       full_name: username,
@@ -190,27 +222,50 @@ export async function createUser(req, res, next) {
     }, { onConflict: 'id' });
 
     if (profileError) {
+      logAccountPhase(traceId, 'profile_upsert_failed', {
+        message: profileError.message,
+        code: profileError.code,
+      });
       throw profileError;
     }
 
     if (role === 'student') {
+      logAccountPhase(traceId, 'upserting_student_row');
       const { error } = await supabaseAdmin.from('students').upsert({
         profile_id: userId,
         student_number: buildStudentNumber(),
       }, { onConflict: 'profile_id' });
-      if (error) throw error;
+      if (error) {
+        logAccountPhase(traceId, 'student_upsert_failed', {
+          message: error.message,
+          code: error.code,
+        });
+        throw error;
+      }
     }
 
     if (role === 'teacher') {
+      logAccountPhase(traceId, 'upserting_teacher_row');
       const { error } = await supabaseAdmin.from('teachers').upsert({
         profile_id: userId,
         employee_number: buildEmployeeNumber(),
       }, { onConflict: 'profile_id' });
-      if (error) throw error;
+      if (error) {
+        logAccountPhase(traceId, 'teacher_upsert_failed', {
+          message: error.message,
+          code: error.code,
+        });
+        throw error;
+      }
     }
 
+    logAccountPhase(traceId, 'create_user_completed');
     res.status(201).json({ message: 'User created successfully.' });
   } catch (error) {
+    logAccountPhase(traceId, 'unhandled_error', {
+      message: error?.message,
+      code: error?.code,
+    });
     next(error);
   }
 }
