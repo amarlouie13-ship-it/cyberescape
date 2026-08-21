@@ -1,30 +1,20 @@
 import { useState } from 'react';
-import { LayoutDashboard, Users, Shield, Map, Puzzle, Gem, FileText, BellRing, Settings, LogOut, BarChart3, Activity, ClipboardList, Target } from 'lucide-react';
+import { LayoutDashboard, Users, Shield, Map, Puzzle, Gem, FileText, BellRing, Settings, LogOut, BarChart3, Activity, ClipboardList, Target, UserPlus } from 'lucide-react';
 import Sidebar from '../components/common/Sidebar';
 import MobileDrawer from '../components/common/MobileDrawer';
 import { useAuth } from '../context/AuthContext';
 
 const sections = [
-  { title: 'Main', items: [{ label: 'Dashboard', to: '/admin/dashboard', end: true, icon: LayoutDashboard }] },
-  {
-    title: 'User Management',
-    items: [
-      { label: 'Teachers', to: '/admin/dashboard#teachers', icon: Users },
-      { label: 'Students', to: '/admin/dashboard#students', icon: Shield },
-      { label: 'User Management', to: '/admin/dashboard#users', icon: Users },
-    ],
-  },
-  {
-    title: 'Game Management',
-    items: [
-      { label: 'Rooms', to: '/admin/dashboard#rooms', icon: Map },
-      { label: 'Puzzles', to: '/admin/dashboard#puzzles', icon: Puzzle },
-      { label: 'Clues', to: '/admin/dashboard#clues', icon: ClipboardList },
-      { label: 'Inventory', to: '/admin/dashboard#inventory', icon: Gem },
-      { label: 'Achievements', to: '/admin/dashboard#achievements', icon: Target },
-      { label: 'Lessons', to: '/admin/dashboard#lessons', icon: FileText },
-    ],
-  },
+  { items: [{ label: 'Dashboard', to: '/admin/dashboard', end: true, icon: LayoutDashboard }] },
+  { items: [{ label: 'Add User', to: '/admin/users', icon: UserPlus }] },
+  { items: [{ label: 'Teachers', to: '/admin/dashboard#teachers', icon: Users }] },
+  { items: [{ label: 'Students', to: '/admin/dashboard#students', icon: Shield }] },
+  { items: [{ label: 'Rooms', to: '/admin/dashboard#rooms', icon: Map }] },
+  { items: [{ label: 'Puzzles', to: '/admin/dashboard#puzzles', icon: Puzzle }] },
+  { items: [{ label: 'Clues', to: '/admin/dashboard#clues', icon: ClipboardList }] },
+  { items: [{ label: 'Inventory', to: '/admin/dashboard#inventory', icon: Gem }] },
+  { items: [{ label: 'Achievements', to: '/admin/dashboard#achievements', icon: Target }] },
+  { items: [{ label: 'Lessons', to: '/admin/dashboard#lessons', icon: FileText }] },
   {
     title: 'Monitoring',
     items: [

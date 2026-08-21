@@ -15,6 +15,19 @@ const registrations = [
 
 const completion = [{ name: 'Completion', value: 68, fill: '#22D3EE' }];
 
+const adminOverview = {
+  rooms: [
+    [1, 'Login Security', 'Beginner', 'Active', '92%', '910'],
+    [2, 'Phishing Email', 'Beginner', 'Active', '88%', '875'],
+    [3, 'Password Security', 'Beginner', 'Active', '95%', '940'],
+    [4, 'Malware Investigation', 'Intermediate', 'Active', '81%', '802'],
+    [5, 'Encryption Challenge', 'Intermediate', 'Active', '76%', '768'],
+    [6, 'Network Security', 'Advanced', 'Active', '69%', '735'],
+    [7, 'Incident Response', 'Advanced', 'Active', '64%', '701'],
+    [8, 'Final CyberEscape', 'Advanced', 'Active', '58%', '690'],
+  ],
+};
+
 export default function AdminDashboard() {
   const { user } = useAuth();
   const searchPlaceholder = useMemo(() => `Search as ${user?.full_name ?? 'Admin'}`, [user?.full_name]);

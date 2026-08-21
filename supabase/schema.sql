@@ -1,4 +1,5 @@
--- CyberEscape Phase 2: normalized schema for Supabase PostgreSQL
+-- CyberEscape backend schema for Supabase PostgreSQL
+-- Apply this before rls.sql, seed.sql, and admin.sql.
 
 create extension if not exists pgcrypto;
 
@@ -44,6 +45,23 @@ exception
   when duplicate_object then null;
 end $$;
 
+do $$
+begin
+  create type public.session_status as enum ('active', 'paused', 'completed', 'abandoned');
+exception
+  when duplicate_object then null;
+end $$;
+
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text not null,
@@ -84,7 +102,9 @@ create table if not exists public.rooms (
   status public.room_status not null default 'active',
   background_url text,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint rooms_room_number_positive check (room_number > 0),
+  constraint rooms_order_number_positive check (order_number > 0)
 );
 
 create table if not exists public.puzzles (
@@ -99,7 +119,10 @@ create table if not exists public.puzzles (
   order_number int not null default 1,
   status public.puzzle_status not null default 'active',
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint puzzles_base_score_nonnegative check (base_score >= 0),
+  constraint puzzles_attempt_penalty_nonnegative check (attempt_penalty >= 0),
+  constraint puzzles_order_number_positive check (order_number > 0)
 );
 
 create table if not exists public.puzzle_options (
@@ -107,7 +130,8 @@ create table if not exists public.puzzle_options (
   puzzle_id uuid not null references public.puzzles(id) on delete cascade,
   option_text text not null,
   is_correct boolean not null default false,
-  order_number int not null default 1
+  order_number int not null default 1,
+  unique (puzzle_id, order_number)
 );
 
 create table if not exists public.validation_rules (
@@ -116,7 +140,8 @@ create table if not exists public.validation_rules (
   rule_type text not null,
   rule_key text not null,
   rule_value text not null,
-  rule_order int not null default 1
+  rule_order int not null default 1,
+  unique (puzzle_id, rule_order)
 );
 
 create table if not exists public.hints (
@@ -124,7 +149,9 @@ create table if not exists public.hints (
   puzzle_id uuid not null references public.puzzles(id) on delete cascade,
   hint_number int not null,
   hint_text text not null,
-  score_penalty int not null default 25
+  score_penalty int not null default 25,
+  unique (puzzle_id, hint_number),
+  constraint hints_score_penalty_nonnegative check (score_penalty >= 0)
 );
 
 create table if not exists public.attempts (
@@ -135,7 +162,8 @@ create table if not exists public.attempts (
   submitted_answer text not null,
   attempt_number int not null,
   is_correct boolean not null default false,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  unique (student_id, puzzle_id, attempt_number)
 );
 
 create table if not exists public.room_progress (
@@ -148,7 +176,10 @@ create table if not exists public.room_progress (
   hints_used int not null default 0,
   started_at timestamptz,
   completed_at timestamptz,
-  unique(student_id, room_id)
+  unique(student_id, room_id),
+  constraint room_progress_score_nonnegative check (score >= 0),
+  constraint room_progress_attempts_nonnegative check (attempts >= 0),
+  constraint room_progress_hints_nonnegative check (hints_used >= 0)
 );
 
 create table if not exists public.puzzle_progress (
@@ -160,7 +191,10 @@ create table if not exists public.puzzle_progress (
   attempts int not null default 0,
   hints_used int not null default 0,
   completed_at timestamptz,
-  unique(student_id, puzzle_id)
+  unique(student_id, puzzle_id),
+  constraint puzzle_progress_score_nonnegative check (score >= 0),
+  constraint puzzle_progress_attempts_nonnegative check (attempts >= 0),
+  constraint puzzle_progress_hints_nonnegative check (hints_used >= 0)
 );
 
 create table if not exists public.scores (
@@ -169,7 +203,8 @@ create table if not exists public.scores (
   room_id uuid not null references public.rooms(id) on delete cascade,
   score int not null default 0,
   completion_time interval,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint scores_nonnegative check (score >= 0)
 );
 
 create table if not exists public.clues (
@@ -239,7 +274,7 @@ create table if not exists public.game_sessions (
   started_at timestamptz not null default now(),
   last_activity timestamptz not null default now(),
   ended_at timestamptz,
-  status text not null default 'active'
+  status public.session_status not null default 'active'
 );
 
 create table if not exists public.notifications (
@@ -270,9 +305,36 @@ create table if not exists public.activity_logs (
   created_at timestamptz not null default now()
 );
 
+create index if not exists idx_profiles_role on public.profiles(role);
+create index if not exists idx_profiles_status on public.profiles(status);
 create index if not exists idx_rooms_order_number on public.rooms(order_number);
+create index if not exists idx_rooms_status on public.rooms(status);
 create index if not exists idx_puzzles_room_id on public.puzzles(room_id);
+create index if not exists idx_puzzles_status on public.puzzles(status);
 create index if not exists idx_attempts_student_id on public.attempts(student_id);
+create index if not exists idx_attempts_puzzle_id on public.attempts(puzzle_id);
 create index if not exists idx_room_progress_student_id on public.room_progress(student_id);
+create index if not exists idx_room_progress_room_id on public.room_progress(room_id);
 create index if not exists idx_puzzle_progress_student_id on public.puzzle_progress(student_id);
+create index if not exists idx_puzzle_progress_puzzle_id on public.puzzle_progress(puzzle_id);
+create index if not exists idx_scores_student_id on public.scores(student_id);
+create index if not exists idx_scores_room_id on public.scores(room_id);
+create index if not exists idx_game_sessions_student_id on public.game_sessions(student_id);
+create index if not exists idx_notifications_user_id on public.notifications(user_id);
+create index if not exists idx_announcements_created_by on public.announcements(created_by);
+create index if not exists idx_activity_logs_user_id on public.activity_logs(user_id);
 
+drop trigger if exists trg_profiles_updated_at on public.profiles;
+create trigger trg_profiles_updated_at
+before update on public.profiles
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_rooms_updated_at on public.rooms;
+create trigger trg_rooms_updated_at
+before update on public.rooms
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_puzzles_updated_at on public.puzzles;
+create trigger trg_puzzles_updated_at
+before update on public.puzzles
+for each row execute function public.set_updated_at();

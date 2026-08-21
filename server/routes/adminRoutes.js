@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import {
+  createUser,
   createPuzzle,
   createRoom,
   deletePuzzle,
@@ -19,6 +20,8 @@ router.get('/rooms', listRooms);
 router.post('/rooms', createRoom);
 router.put('/rooms/:id', updateRoom);
 router.delete('/rooms/:id', deleteRoom);
+
+router.post('/users', createUser);
 
 router.get('/puzzles', listPuzzles);
 router.post('/puzzles', createPuzzle);

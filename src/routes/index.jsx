@@ -11,6 +11,7 @@ const RoomsHubPage = lazy(() => import('../pages/game/RoomsHubPage'));
 const RoomPage = lazy(() => import('../pages/game/RoomPage'));
 const RoomManagementPage = lazy(() => import('../pages/admin/RoomManagementPage'));
 const PuzzleManagementPage = lazy(() => import('../pages/admin/PuzzleManagementPage'));
+const AddUserPage = lazy(() => import('../pages/admin/AddUserPage'));
 const AdminReportsPage = lazy(() => import('../pages/admin/AdminReportsPage'));
 const TeacherReportsPage = lazy(() => import('../pages/teacher/TeacherReportsPage'));
 
@@ -24,6 +25,10 @@ export const appRoutes = [
   {
     path: '/admin/rooms',
     element: <ProtectedRoute allowedRoles={['admin']}><RoomManagementPage /></ProtectedRoute>,
+  },
+  {
+    path: '/admin/users',
+    element: <ProtectedRoute allowedRoles={['admin']}><AddUserPage /></ProtectedRoute>,
   },
   {
     path: '/admin/puzzles',

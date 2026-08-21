@@ -1,69 +1,45 @@
 import { supabaseAdmin, supabaseAuth } from '../config/supabase.js';
-import { getSessionStore } from '../middleware/auth.js';
 
-export async function login(req, res) {
-  const { identifier, password } = req.body || {};
-  if (!identifier || !password) {
-    return res.status(400).json({ message: 'Username or password is required.' });
-  }
+function getBearerToken(req) {
+  const header = req.headers.authorization || '';
+  const [scheme, token] = header.split(' ');
+  return scheme?.toLowerCase() === 'bearer' ? token : null;
+}
 
-  const demoModeEnabled = process.env.CYBERESCAPE_DEMO_LOGIN === 'true';
-  const demoPassword = process.env.CYBERESCAPE_DEMO_PASSWORD || 'CyberEscape123!';
-
-  if (supabaseAdmin && supabaseAuth) {
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('id, full_name, email, username, role, status')
-      .or(`email.eq.${identifier},username.eq.${identifier}`)
-      .maybeSingle();
-
-    if (!profile || profile.status !== 'active') {
-      return res.status(401).json({ message: 'Invalid username or password.' });
-    }
-
-    const { error: authError } = await supabaseAuth.auth.signInWithPassword({
-      email: profile.email,
-      password,
-    });
-
-    if (authError) {
-      if (demoModeEnabled && profile.role === 'admin' && password === demoPassword) {
-        getSessionStore().user = profile;
-        return res.json({ message: 'Login successful.' });
-      }
-      return res.status(401).json({ message: 'Invalid username or password.' });
-    }
-
-    getSessionStore().user = profile;
-    return res.json({ message: 'Login successful.' });
-  }
-
-  const demoRole = identifier.toLowerCase().includes('admin')
-    ? 'admin'
-    : identifier.toLowerCase().includes('teacher')
-      ? 'teacher'
-      : 'student';
-
-  getSessionStore().user = {
-    id: `demo-${demoRole}`,
-    full_name: `Cyber ${demoRole}`,
-    email: `${demoRole}@cyberescape.local`,
-    username: demoRole,
-    role: demoRole,
-    status: 'active',
-  };
-  return res.json({ message: 'Login successful.' });
+export async function login(_req, res) {
+  return res.status(410).json({
+    message: 'Use Supabase Authentication in the frontend. This endpoint is deprecated.',
+  });
 }
 
 export async function logout(_req, res) {
-  getSessionStore().user = null;
-  res.json({ message: 'Logged out.' });
+  return res.json({ message: 'Logout is handled by Supabase Auth on the client.' });
 }
 
-export async function me(_req, res) {
-  const user = getSessionStore().user;
-  if (!user) {
+export async function me(req, res) {
+  if (!supabaseAuth || !supabaseAdmin) {
+    return res.status(500).json({ message: 'Authentication service is not configured.' });
+  }
+
+  const token = getBearerToken(req);
+  if (!token) {
     return res.status(401).json({ message: 'Not authenticated.' });
   }
-  return res.json({ user });
+
+  const { data: userData, error: userError } = await supabaseAuth.auth.getUser(token);
+  if (userError || !userData?.user?.id) {
+    return res.status(401).json({ message: 'Not authenticated.' });
+  }
+
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .select('id, full_name, email, username, role, status')
+    .eq('id', userData.user.id)
+    .single();
+
+  if (profileError || !profile) {
+    return res.status(404).json({ message: 'Profile not found.' });
+  }
+
+  return res.json({ user: profile });
 }

@@ -1,15 +1,14 @@
 -- CyberEscape admin setup
 -- Run this after schema.sql and rls.sql are applied.
--- Replace the placeholder values before executing in Supabase SQL editor.
-
--- Optional helper: create an admin profile row for an existing Supabase Auth user.
--- Usage:
---   select public.create_admin_profile(
---     '00000000-0000-0000-0000-000000000000',
---     'CyberEscape Admin',
---     'admin@cyberescape.local',
---     'admin'
---   );
+--
+-- Admin identity values:
+--   full_name : CyberEscape Admin
+--   email     : admin@cyberescape.local
+--   username  : admin
+--
+-- Important:
+-- The password must be created in Supabase Auth for the matching user.
+-- This file only syncs the public.profiles row.
 
 create or replace function public.create_admin_profile(
   p_user_id uuid,
@@ -56,10 +55,29 @@ $$;
 comment on function public.create_admin_profile is
 'Creates or updates an admin profile row for a Supabase Auth user.';
 
--- Example maintenance query:
--- select public.create_admin_profile(
---   'YOUR-USER-UUID-HERE',
---   'CyberEscape Admin',
---   'admin@cyberescape.local',
---   'admin'
--- );
+do $$
+declare
+  v_user_id uuid;
+begin
+  select id
+    into v_user_id
+  from auth.users
+  where lower(email) = lower('admin@cyberescape.local')
+  limit 1;
+
+  if v_user_id is null then
+    raise notice 'No Supabase Auth user found for admin@cyberescape.local. Create the Auth user first, then re-run this file.';
+  else
+    perform public.create_admin_profile(
+      v_user_id,
+      'CyberEscape Admin',
+      'admin@cyberescape.local',
+      'admin'
+    );
+    raise notice 'Admin profile synced for %', v_user_id;
+  end if;
+end;
+$$;
+
+-- Password setup:
+-- Set the admin password in Supabase Auth for the same user.

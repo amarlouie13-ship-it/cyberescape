@@ -1,7 +1,37 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { api } from '../services/api';
+import { supabase } from '../services/supabase';
 
 const AuthContext = createContext(null);
+
+function resolveRole(profile, sessionUser) {
+  const emailRole = String(sessionUser?.email ?? '')
+    .toLowerCase()
+    .split('@')[0];
+
+  return (
+    profile?.role ||
+    sessionUser?.user_metadata?.role ||
+    sessionUser?.app_metadata?.role ||
+    (['admin', 'teacher', 'student'].includes(emailRole) ? emailRole : null)
+  );
+}
+
+function buildUser(profile, sessionUser) {
+  if (!sessionUser) {
+    return null;
+  }
+
+  const role = resolveRole(profile, sessionUser);
+
+  return {
+    id: profile?.id ?? sessionUser.id,
+    full_name: profile?.full_name ?? sessionUser.user_metadata?.full_name ?? '',
+    email: profile?.email ?? sessionUser.email ?? '',
+    username: profile?.username ?? sessionUser.user_metadata?.username ?? '',
+    role,
+    status: profile?.status ?? 'active',
+  };
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -9,8 +39,30 @@ export function AuthProvider({ children }) {
 
   const loadSession = async () => {
     try {
-      const { data } = await api.get('/api/auth/me');
-      setUser(data?.user ?? null);
+      if (!supabase) {
+        setUser(null);
+        return;
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const sessionUser = sessionData?.session?.user ?? null;
+
+      if (!sessionUser) {
+        setUser(null);
+        return;
+      }
+
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, username, role, status')
+        .eq('id', sessionUser.id)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      setUser(buildUser(profile, sessionUser));
     } catch {
       setUser(null);
     } finally {
@@ -20,6 +72,30 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     loadSession();
+    if (!supabase) {
+      return undefined;
+    }
+
+    const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!session?.user) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, username, role, status')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      setUser(buildUser(profile, session.user));
+      setLoading(false);
+    });
+
+    return () => {
+      data.subscription.unsubscribe();
+    };
   }, []);
 
   const value = useMemo(
@@ -29,7 +105,9 @@ export function AuthProvider({ children }) {
       setUser,
       refreshUser: loadSession,
       logout: async () => {
-        await api.post('/api/auth/logout');
+        if (supabase) {
+          await supabase.auth.signOut();
+        }
         setUser(null);
       },
     }),

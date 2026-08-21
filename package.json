@@ -10,6 +10,8 @@
     "server": "node server/server.js",
     "server:dev": "node --watch server/server.js",
     "seed:admin": "node server/scripts/createAdmin.mjs",
+    "seed:admin:supabase": "node server/scripts/seedAdmin.mjs",
+    "seed:users": "node server/scripts/seedUsers.mjs",
     "test": "node --test tests\\gameService.test.js"
   },
   "dependencies": {

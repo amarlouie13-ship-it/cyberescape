@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Eye, EyeOff, Lock, ShieldCheck, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../services/supabase';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -11,9 +11,36 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const redirectByRole = (role) => {
+    if (!role) return;
+
+    const destination =
+      role === 'admin'
+        ? '/admin/dashboard'
+        : role === 'teacher'
+          ? '/teacher/dashboard'
+          : '/student/dashboard';
+
+    navigate(destination, { replace: true });
+  };
+
+  const inferRoleFromSession = (sessionData, profile) => {
+    const sessionUser = sessionData?.session?.user;
+    const emailRole = String(sessionUser?.email ?? '')
+      .toLowerCase()
+      .split('@')[0];
+
+    return (
+      profile?.role ||
+      sessionUser?.user_metadata?.role ||
+      sessionUser?.app_metadata?.role ||
+      (['admin', 'teacher', 'student'].includes(emailRole) ? emailRole : null)
+    );
+  };
+
   useEffect(() => {
     if (!loading && user?.role) {
-      navigate(`/${user.role}/dashboard`, { replace: true });
+      redirectByRole(user.role);
     }
   }, [loading, navigate, user]);
 
@@ -23,19 +50,43 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await api.post('/api/auth/login', {
-        identifier: form.identifier,
+      if (!supabase) {
+        throw new Error('Supabase is not configured.');
+      }
+
+      const email = form.identifier.trim().toLowerCase();
+      if (!email.includes('@')) {
+        throw new Error('Please enter your Supabase email address.');
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
         password: form.password,
-        rememberMe: form.rememberMe,
       });
+
+      if (signInError) {
+        throw signInError;
+      }
+
       await refreshUser();
-      const session = await api.get('/api/auth/me');
-      const role = session.data?.user?.role;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      const { data: profile } = userId
+        ? await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .single()
+        : { data: null };
+
+      const role = inferRoleFromSession(sessionData, profile);
       if (role) {
-        navigate(`/${role}/dashboard`, { replace: true });
+        redirectByRole(role);
+      } else {
+        throw new Error('Your profile is missing a role.');
       }
     } catch (loginError) {
-      setError(loginError?.response?.data?.message || 'Invalid username or password.');
+      setError(loginError?.message || 'Invalid username or password.');
     } finally {
       setSubmitting(false);
     }
@@ -66,15 +117,15 @@ export default function LoginPage() {
 
               <form onSubmit={handleSubmit} className="mt-5 space-y-4">
                 <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-slate-700">Username</span>
+                  <span className="mb-2 block text-sm font-medium text-slate-700">Email</span>
                   <div className="flex items-center rounded-2xl border border-slate-300 bg-white px-5 py-3.5 shadow-sm transition focus-within:border-[#0f766e] focus-within:ring-2 focus-within:ring-[#0f766e]/10">
                     <User className="mr-4 h-5 w-5 text-slate-400" />
                     <input
                       value={form.identifier}
                       onChange={(e) => setForm((prev) => ({ ...prev, identifier: e.target.value }))}
                       className="w-full bg-transparent text-[15px] text-slate-900 outline-none placeholder:text-slate-400"
-                      placeholder="Enter your username"
-                      autoComplete="username"
+                      placeholder="Enter your email"
+                      autoComplete="email"
                       required
                     />
                   </div>
@@ -126,6 +177,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={submitting}
+                  aria-busy={submitting}
                   className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[#0f766e] to-[#0d9488] px-5 py-3.5 text-lg font-semibold text-white shadow-[0_12px_30px_rgba(15,118,110,0.25)] transition hover:from-[#115e59] hover:to-[#0f766e] disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   <Lock className="h-5 w-5" />
@@ -139,10 +191,7 @@ export default function LoginPage() {
                 </div>
 
                 <p className="text-center text-sm text-slate-600">
-                  Don&apos;t have an account?{' '}
-                  <button type="button" className="font-semibold text-[#0f766e]">
-                    Create Account
-                  </button>
+                  Use your Supabase account to sign in.
                 </p>
 
               </form>
