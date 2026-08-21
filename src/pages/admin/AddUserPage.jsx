@@ -48,12 +48,19 @@ export default function AddUserPage() {
         error?.response?.data?.error ||
         error?.message ||
         'Unable to create user.';
+      const backendCode = error?.response?.data?.code;
+      const traceId = error?.response?.data?.traceId;
+      const diagnosticSuffix = [backendCode ? `Code: ${backendCode}` : null, traceId ? `Trace: ${traceId}` : null]
+        .filter(Boolean)
+        .join(' | ');
       setStatus({
         type: 'error',
         message:
           backendMessage === 'Network Error'
             ? 'Unable to reach the API server. Make sure the backend is running on port 4000.'
-            : backendMessage,
+            : diagnosticSuffix
+              ? `${backendMessage} (${diagnosticSuffix})`
+              : backendMessage,
       });
     } finally {
       setSubmitting(false);

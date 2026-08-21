@@ -5,6 +5,11 @@ function logAuthPhase(traceId, phase, details = {}) {
   console.info(`[auth:${traceId}] ${phase}`, details);
 }
 
+function sendAuthError(res, status, message, code, traceId, phase, details = {}) {
+  logAuthPhase(traceId, phase, details);
+  return res.status(status).json({ message, code, traceId });
+}
+
 function inferRoleFromUser(user) {
   const metadataRole = String(user?.user_metadata?.role ?? user?.app_metadata?.role ?? '').toLowerCase();
   if (['admin', 'teacher', 'student'].includes(metadataRole)) {
@@ -19,45 +24,44 @@ function inferRoleFromUser(user) {
   return null;
 }
 
-function buildFallbackUser(user) {
+function buildFallbackProfile(user) {
   if (!user) {
     return null;
   }
 
+  const role = inferRoleFromUser(user);
   return {
     id: user.id,
     full_name: String(user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? '').trim(),
     email: String(user?.email ?? '').trim(),
     username: String(user?.user_metadata?.username ?? '').trim() || String(user?.email ?? '').split('@')[0],
-    role: inferRoleFromUser(user),
+    role,
     status: 'active',
   };
 }
 
-async function syncFallbackProfile(user) {
-  const fallbackUser = buildFallbackUser(user);
-
-  if (!fallbackUser?.role || fallbackUser.role !== 'admin' || !supabaseAdmin) {
-    return fallbackUser;
+async function upsertMissingAdminProfile(profile) {
+  if (!profile?.id || profile.role !== 'admin' || !supabaseAdmin) {
+    return profile;
   }
 
-  const profile = {
-    id: fallbackUser.id,
-    full_name: fallbackUser.full_name || 'CyberEscape Admin',
-    email: fallbackUser.email || 'admin@cyberescape.local',
-    username: fallbackUser.username || 'admin',
+  const payload = {
+    id: profile.id,
+    full_name: profile.full_name || 'CyberEscape Admin',
+    email: profile.email || 'admin@cyberescape.local',
+    username: profile.username || 'admin',
     role: 'admin',
     status: 'active',
-    updated_at: new Date().toISOString(),
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   };
 
-  const { error } = await supabaseAdmin.from('profiles').upsert(profile, { onConflict: 'id' });
+  const { error } = await supabaseAdmin.from('profiles').upsert(payload, { onConflict: 'id' });
   if (error) {
-    return fallbackUser;
+    logAuthPhase('admin-sync', 'admin_profile_upsert_failed', { message: error.message, code: error.code });
   }
 
-  return profile;
+  return payload;
 }
 
 export function requireAuth(req, res, next) {
@@ -66,13 +70,12 @@ export function requireAuth(req, res, next) {
   const [scheme, token] = header.split(' ');
 
   if (scheme?.toLowerCase() !== 'bearer' || !token || !supabaseAuth || !supabaseAdmin) {
-    logAuthPhase(traceId, 'missing_bearer_or_config', {
+    return sendAuthError(res, 401, 'Authentication token is missing or invalid.', 'missing_bearer_or_config', traceId, 'missing_bearer_or_config', {
       hasBearer: scheme?.toLowerCase() === 'bearer',
       hasToken: Boolean(token),
       hasSupabaseAuth: Boolean(supabaseAuth),
       hasSupabaseAdmin: Boolean(supabaseAdmin),
     });
-    return res.status(401).json({ message: 'Your session has expired.' });
   }
 
   logAuthPhase(traceId, 'validating_token');
@@ -80,11 +83,10 @@ export function requireAuth(req, res, next) {
     .getUser(token)
     .then(({ data, error }) => {
       if (error || !data?.user?.id) {
-        logAuthPhase(traceId, 'token_validation_failed', {
+        return sendAuthError(res, 401, 'Supabase session token is expired or invalid.', 'token_validation_failed', traceId, 'token_validation_failed', {
           message: error?.message,
           code: error?.code,
         });
-        return res.status(401).json({ message: 'Your session has expired.' });
       }
 
       logAuthPhase(traceId, 'token_valid', { userId: data.user.id });
@@ -95,46 +97,87 @@ export function requireAuth(req, res, next) {
         .maybeSingle()
         .then(({ data: profile, error: profileError }) => {
           if (profileError) {
-            logAuthPhase(traceId, 'profile_lookup_failed', {
-              message: profileError.message,
-              code: profileError.code,
-            });
-            return res.status(401).json({ message: 'Your session has expired.' });
-          }
-
-          if (profile) {
-            logAuthPhase(traceId, 'auth_success', {
-              userId: profile.id,
-              role: profile.role,
-              source: 'profiles',
-            });
-            req.user = profile;
-            return next();
-          }
-
-          return syncFallbackProfile(data.user).then((resolvedUser) => {
-            if (!resolvedUser?.role) {
-              logAuthPhase(traceId, 'role_resolution_failed', { userId: data.user.id });
-              return res.status(401).json({ message: 'Your session has expired.' });
+            const fallbackProfile = buildFallbackProfile(data.user);
+            if (!fallbackProfile?.role) {
+              return sendAuthError(res, 401, 'Authenticated user profile could not be loaded.', 'profile_lookup_failed', traceId, 'profile_lookup_failed', {
+                message: profileError.message,
+                code: profileError.code,
+              });
             }
 
-            logAuthPhase(traceId, 'auth_success', {
-              userId: resolvedUser.id,
-              role: resolvedUser.role,
-              source: 'fallback',
+            if (fallbackProfile.role !== 'admin') {
+              return sendAuthError(res, 403, 'Admin role is required.', 'insufficient_role', traceId, 'insufficient_role', {
+                userId: data.user.id,
+                role: fallbackProfile.role,
+                profileLookupError: profileError.message,
+              });
+            }
+
+            return upsertMissingAdminProfile(fallbackProfile).then((resolvedProfile) => {
+              logAuthPhase(traceId, 'auth_success', {
+                userId: resolvedProfile.id,
+                role: resolvedProfile.role,
+                source: 'fallback_after_profile_error',
+              });
+              req.user = resolvedProfile;
+              return next();
             });
-            req.user = resolvedUser;
-            return next();
+          }
+
+          if (!profile) {
+            const fallbackProfile = buildFallbackProfile(data.user);
+            if (!fallbackProfile?.role) {
+              return sendAuthError(res, 401, 'Authenticated user profile could not be found.', 'profile_not_found', traceId, 'profile_not_found', {
+                userId: data.user.id,
+              });
+            }
+
+            if (fallbackProfile.role !== 'admin') {
+              return sendAuthError(res, 403, 'Admin role is required.', 'insufficient_role', traceId, 'insufficient_role', {
+                userId: data.user.id,
+                role: fallbackProfile.role,
+              });
+            }
+
+            return upsertMissingAdminProfile(fallbackProfile).then((resolvedProfile) => {
+              logAuthPhase(traceId, 'auth_success', {
+                userId: resolvedProfile.id,
+                role: resolvedProfile.role,
+                source: 'fallback_profile',
+              });
+              req.user = resolvedProfile;
+              return next();
+            });
+          }
+
+          if (profile.role !== 'admin') {
+            return sendAuthError(res, 403, 'Admin role is required.', 'insufficient_role', traceId, 'insufficient_role', {
+              userId: data.user.id,
+              role: profile.role,
+            });
+          }
+
+          logAuthPhase(traceId, 'auth_success', {
+            userId: profile.id,
+            role: profile.role,
+            source: 'profiles',
           });
+          req.user = profile;
+          return next();
         });
     })
-    .catch(() => res.status(401).json({ message: 'Your session has expired.' }));
+    .catch((error) => sendAuthError(res, 401, 'Authentication failed while validating the session.', 'auth_exception', traceId, 'auth_exception', {
+      message: error?.message,
+    }));
 }
 
 export function requireRole(...allowedRoles) {
   return (req, res, next) => {
     if (!allowedRoles.includes(req.user?.role)) {
-      return res.status(403).json({ message: 'Forbidden.' });
+      return res.status(403).json({
+        message: `Role ${req.user?.role || 'unknown'} is not allowed.`,
+        code: 'insufficient_role',
+      });
     }
     next();
   };
