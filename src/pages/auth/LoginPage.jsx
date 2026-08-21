@@ -80,7 +80,7 @@ export default function LoginPage() {
 
       const role = inferRoleFromSession(signInData, profile);
       if (role) {
-        void refreshUser();
+        await refreshUser();
         redirectByRole(role);
       } else {
         throw new Error('Your profile is missing a role.');
