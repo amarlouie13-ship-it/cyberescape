@@ -32,13 +32,13 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error?.config;
-    const responseMessage = error?.response?.data?.message || '';
+    const responseCode = error?.response?.data?.code || '';
 
     if (
       originalRequest &&
       !originalRequest._retry &&
       error?.response?.status === 401 &&
-      responseMessage === 'Your session has expired.' &&
+      ['token_validation_failed', 'auth_exception', 'missing_bearer_or_config'].includes(responseCode) &&
       supabase
     ) {
       originalRequest._retry = true;
