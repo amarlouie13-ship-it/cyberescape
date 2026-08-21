@@ -8,6 +8,7 @@ import { api } from '../../services/api';
 export default function TeacherDashboard() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showProgressModal, setShowProgressModal] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -43,7 +44,7 @@ export default function TeacherDashboard() {
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-              <SectionCard title="Recent Student Activity" subtitle="Most recent class events">
+              <SectionCard id="students" title="Recent Student Activity" subtitle="Most recent class events">
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
                     <thead className="text-slate-400">
@@ -80,17 +81,35 @@ export default function TeacherDashboard() {
                 </div>
               </SectionCard>
 
-              <SectionCard title="Student Progress" subtitle="Average completion">
-                <div className="flex h-full items-center justify-center">
-                  <div className="rounded-full border border-cyan-400/20 bg-cyan-400/10 p-10 text-center">
+              <SectionCard
+                id="progress"
+                title="Student Progress"
+                subtitle="Average completion"
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setShowProgressModal(true)}
+                    className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200 transition hover:bg-cyan-400/15"
+                  >
+                    Open
+                  </button>
+                }
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowProgressModal(true)}
+                  className="flex h-full w-full items-center justify-center rounded-3xl bg-transparent py-8 text-left"
+                >
+                  <div className="rounded-full border border-cyan-400/20 bg-cyan-400/10 p-10 text-center transition hover:scale-[1.02]">
                     <p className="text-5xl font-black text-cyan-300">68%</p>
                     <p className="mt-2 text-sm text-slate-300">Average Completion</p>
+                    <p className="mt-3 text-xs uppercase tracking-[0.2em] text-cyan-200/80">Click to view details</p>
                   </div>
-                </div>
+                </button>
               </SectionCard>
             </div>
 
-            <SectionCard title="Teacher Student Performance" subtitle="Performance overview">
+            <SectionCard id="performance" title="Teacher Student Performance" subtitle="Performance overview">
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-sm">
                   <thead className="text-slate-400">
@@ -135,7 +154,7 @@ export default function TeacherDashboard() {
                 </div>
             </SectionCard>
 
-            <SectionCard title="Achievement Badges" subtitle="Live student milestones">
+            <SectionCard id="leaderboard" title="Achievement Badges" subtitle="Live student milestones">
               <div className="flex flex-wrap gap-3">
                 {(summary?.achievementBadges ?? ['First Escape', 'Password Master', 'Phishing Detector']).map((badge) => (
                   <span key={badge} className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200">
@@ -145,6 +164,57 @@ export default function TeacherDashboard() {
               </div>
             </SectionCard>
           </div>
+
+          {showProgressModal ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
+              <button
+                type="button"
+                className="absolute inset-0 cursor-default"
+                onClick={() => setShowProgressModal(false)}
+                aria-label="Close progress modal"
+              />
+              <div className="relative z-10 w-full max-w-2xl rounded-[28px] border border-white/10 bg-slate-950 p-6 shadow-[0_20px_80px_rgba(0,0,0,0.55)]">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.3em] text-cyan-300">Student Progress</p>
+                    <h3 className="mt-2 text-2xl font-bold text-white">Average Completion</h3>
+                    <p className="mt-1 text-sm text-slate-400">A closer look at current class progress.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowProgressModal(false)}
+                    className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="mt-6 grid gap-4 md:grid-cols-[0.9fr_1.1fr]">
+                  <div className="flex items-center justify-center rounded-[24px] border border-cyan-400/20 bg-cyan-400/10 p-8">
+                    <div className="text-center">
+                      <p className="text-6xl font-black text-cyan-300">68%</p>
+                      <p className="mt-2 text-sm text-slate-300">Average Completion</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-sm text-slate-400">Students Active</p>
+                      <p className="mt-1 text-2xl font-semibold text-white">{loading ? '...' : summary?.studentsPlaying ?? 0}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-sm text-slate-400">Rooms Completed</p>
+                      <p className="mt-1 text-2xl font-semibold text-white">{loading ? '...' : summary?.roomsCompleted ?? 0}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-sm text-slate-400">Total Plays</p>
+                      <p className="mt-1 text-2xl font-semibold text-white">{loading ? '...' : summary?.totalPlays ?? 0}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </DashboardShell>
       )}
     </TeacherLayout>

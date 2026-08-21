@@ -50,7 +50,10 @@ export default function AddUserPage() {
         'Unable to create user.';
       setStatus({
         type: 'error',
-        message: backendMessage,
+        message:
+          backendMessage === 'Network Error'
+            ? 'Unable to reach the API server. Make sure the backend is running on port 4000.'
+            : backendMessage,
       });
     } finally {
       setSubmitting(false);

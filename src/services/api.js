@@ -1,8 +1,11 @@
 import axios from 'axios';
 import { supabase } from './supabase';
 
+const defaultBaseURL = '/api';
+const configuredBaseURL = import.meta.env.VITE_API_BASE_URL?.trim();
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',
+  baseURL: configuredBaseURL || defaultBaseURL,
   withCredentials: true,
 });
 
