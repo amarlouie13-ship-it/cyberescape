@@ -7,8 +7,8 @@ function normalizeUsername(value) {
   return String(value ?? '').trim().toLowerCase();
 }
 
-function buildInternalEmail(username) {
-  return `${normalizeUsername(username)}@cyberescape.local`;
+function normalizeEmail(value) {
+  return String(value ?? '').trim().toLowerCase();
 }
 
 function buildStudentNumber() {
@@ -118,12 +118,13 @@ export async function createUser(req, res, next) {
       return res.status(501).json({ message: 'Supabase not configured.' });
     }
 
+    const email = normalizeEmail(req.body?.email);
     const username = normalizeUsername(req.body?.username);
     const password = String(req.body?.password ?? '');
     const confirmPassword = String(req.body?.confirmPassword ?? '');
     const role = String(req.body?.role ?? '').toLowerCase();
 
-    if (!username || !password || !confirmPassword || !role) {
+    if (!email || !username || !password || !confirmPassword || !role) {
       return res.status(400).json({ message: 'All fields are required.' });
     }
 
@@ -134,8 +135,6 @@ export async function createUser(req, res, next) {
     if (password !== confirmPassword) {
       return res.status(400).json({ message: 'Passwords do not match.' });
     }
-
-    const email = buildInternalEmail(username);
 
     const [{ data: existingUsername }, { data: existingEmail }] = await Promise.all([
       supabaseAdmin.from('profiles').select('id').eq('username', username).maybeSingle(),
@@ -152,6 +151,7 @@ export async function createUser(req, res, next) {
       email_confirm: true,
       user_metadata: {
         username,
+        email,
         role,
       },
     });
@@ -165,7 +165,7 @@ export async function createUser(req, res, next) {
 
     const userId = authData.user.id;
 
-    const { error: profileError } = await supabaseAdmin.from('profiles').insert({
+    const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
       id: userId,
       full_name: username,
       email,
@@ -174,25 +174,25 @@ export async function createUser(req, res, next) {
       status: 'active',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    });
+    }, { onConflict: 'id' });
 
     if (profileError) {
       throw profileError;
     }
 
     if (role === 'student') {
-      const { error } = await supabaseAdmin.from('students').insert({
+      const { error } = await supabaseAdmin.from('students').upsert({
         profile_id: userId,
         student_number: buildStudentNumber(),
-      });
+      }, { onConflict: 'profile_id' });
       if (error) throw error;
     }
 
     if (role === 'teacher') {
-      const { error } = await supabaseAdmin.from('teachers').insert({
+      const { error } = await supabaseAdmin.from('teachers').upsert({
         profile_id: userId,
         employee_number: buildEmployeeNumber(),
-      });
+      }, { onConflict: 'profile_id' });
       if (error) throw error;
     }
 

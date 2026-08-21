@@ -12,7 +12,7 @@ const roleOptions = [
 ];
 
 export default function AddUserPage() {
-  const [form, setForm] = useState({ username: '', password: '', confirmPassword: '', role: 'teacher' });
+  const [form, setForm] = useState({ email: '', username: '', password: '', confirmPassword: '', role: 'admin' });
   const [status, setStatus] = useState({ type: '', message: '' });
   const [submitting, setSubmitting] = useState(false);
 
@@ -33,6 +33,7 @@ export default function AddUserPage() {
       }
 
       const { data } = await api.post('/api/admin/users', {
+        email: form.email,
         username: form.username,
         password: form.password,
         confirmPassword: form.confirmPassword,
@@ -40,7 +41,7 @@ export default function AddUserPage() {
       });
 
       setStatus({ type: 'success', message: data?.message || 'User created successfully.' });
-      setForm({ username: '', password: '', confirmPassword: '', role: form.role });
+      setForm({ email: '', username: '', password: '', confirmPassword: '', role: form.role });
     } catch (error) {
       setStatus({
         type: 'error',
@@ -58,6 +59,19 @@ export default function AddUserPage() {
           <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
             <SectionCard title="New Account" subtitle="Only admins can create users">
               <form onSubmit={handleSubmit} className="space-y-5">
+                <label className="block">
+                  <span className="mb-2 block text-sm text-slate-300">Email</span>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+                    className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/60"
+                    placeholder="Enter email"
+                    autoComplete="email"
+                    required
+                  />
+                </label>
+
                 <label className="block">
                   <span className="mb-2 block text-sm text-slate-300">Username</span>
                   <input
@@ -98,26 +112,17 @@ export default function AddUserPage() {
 
                 <div>
                   <span className="mb-2 block text-sm text-slate-300">Role</span>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {roleOptions.map((option) => {
-                      const active = form.role === option.value;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => setForm((prev) => ({ ...prev, role: option.value }))}
-                          className={`rounded-2xl border px-4 py-3 text-left transition ${
-                            active
-                              ? 'border-cyan-400/60 bg-cyan-400/10 text-cyan-100'
-                              : 'border-white/10 bg-slate-950 text-slate-300 hover:border-white/20'
-                          }`}
-                        >
-                          <p className="font-semibold">{option.label}</p>
-                          <p className="mt-1 text-xs text-slate-400">{option.description}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <select
+                    value={form.role}
+                    onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value }))}
+                    className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-cyan-400/60"
+                  >
+                    {roleOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {status.message ? (
