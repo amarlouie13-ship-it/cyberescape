@@ -58,11 +58,12 @@ export function AuthProvider({ children }) {
         .eq('id', sessionUser.id)
         .maybeSingle();
 
-      if (error) {
-        throw error;
+      if (!error) {
+        setUser(buildUser(profile, sessionUser));
+        return;
       }
 
-      setUser(buildUser(profile, sessionUser));
+      setUser(buildUser(null, sessionUser));
     } catch {
       setUser(null);
     } finally {

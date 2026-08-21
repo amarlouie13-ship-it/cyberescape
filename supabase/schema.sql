@@ -122,6 +122,147 @@ begin
 end;
 $$;
 
+create or replace function public.handle_updated_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_role public.user_role;
+  v_username text;
+  v_full_name text;
+begin
+  v_role := case
+    when new.raw_user_meta_data ->> 'role' in ('admin', 'teacher', 'student')
+      then (new.raw_user_meta_data ->> 'role')::public.user_role
+    when old.email is distinct from new.email and split_part(lower(new.email), '@', 1) in ('admin', 'teacher', 'student')
+      then split_part(lower(new.email), '@', 1)::public.user_role
+    else coalesce(
+      (select p.role from public.profiles p where p.id = new.id),
+      'student'
+    )
+  end;
+
+  v_username := coalesce(
+    nullif(new.raw_user_meta_data ->> 'username', ''),
+    split_part(lower(new.email), '@', 1)
+  );
+
+  v_full_name := coalesce(
+    nullif(new.raw_user_meta_data ->> 'full_name', ''),
+    nullif(new.raw_user_meta_data ->> 'name', ''),
+    initcap(replace(v_username, '.', ' '))
+  );
+
+  insert into public.profiles (
+    id,
+    full_name,
+    email,
+    username,
+    role,
+    status,
+    created_at,
+    updated_at
+  )
+  values (
+    new.id,
+    v_full_name,
+    new.email,
+    v_username,
+    v_role,
+    'active',
+    coalesce(new.created_at, now()),
+    now()
+  )
+  on conflict (id) do update
+    set full_name = excluded.full_name,
+        email = excluded.email,
+        username = excluded.username,
+        role = excluded.role,
+        status = 'active',
+        updated_at = now();
+
+  return new;
+end;
+$$;
+
+create or replace function public.sync_existing_auth_users()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (
+    id,
+    full_name,
+    email,
+    username,
+    role,
+    status,
+    created_at,
+    updated_at
+  )
+  select
+    u.id,
+    coalesce(
+      nullif(u.raw_user_meta_data ->> 'full_name', ''),
+      nullif(u.raw_user_meta_data ->> 'name', ''),
+      initcap(replace(coalesce(nullif(u.raw_user_meta_data ->> 'username', ''), split_part(lower(u.email), '@', 1)), '.', ' '))
+    ) as full_name,
+    lower(u.email) as email,
+    coalesce(nullif(u.raw_user_meta_data ->> 'username', ''), split_part(lower(u.email), '@', 1)) as username,
+    case
+      when u.raw_user_meta_data ->> 'role' in ('admin', 'teacher', 'student')
+        then (u.raw_user_meta_data ->> 'role')::public.user_role
+      when split_part(lower(u.email), '@', 1) in ('admin', 'teacher', 'student')
+        then split_part(lower(u.email), '@', 1)::public.user_role
+      else 'student'
+    end as role,
+    'active'::public.account_status,
+    coalesce(u.created_at, now()),
+    now()
+  from auth.users u
+  left join public.profiles p on p.id = u.id
+  where p.id is null
+  on conflict (id) do update
+    set full_name = excluded.full_name,
+        email = excluded.email,
+        username = excluded.username,
+        role = excluded.role,
+        status = 'active',
+        updated_at = now();
+end;
+$$;
+
+create or replace function public.sync_profile_role_membership()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.role = 'student' then
+    insert into public.students (profile_id, student_number)
+    values (
+      new.id,
+      'STU-' || upper(substr(replace(new.id::text, '-', ''), 1, 8))
+    )
+    on conflict (profile_id) do nothing;
+  elsif new.role = 'teacher' then
+    insert into public.teachers (profile_id, employee_number)
+    values (
+      new.id,
+      'TCH-' || upper(substr(replace(new.id::text, '-', ''), 1, 8))
+    )
+    on conflict (profile_id) do nothing;
+  end if;
+
+  return new;
+end;
+$$;
+
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text not null,
@@ -403,3 +544,21 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_auth_user();
+
+drop trigger if exists on_auth_user_updated on auth.users;
+create trigger on_auth_user_updated
+after update on auth.users
+for each row execute function public.handle_updated_auth_user();
+
+drop trigger if exists trg_profiles_sync_role_membership on public.profiles;
+create trigger trg_profiles_sync_role_membership
+after insert or update of role on public.profiles
+for each row execute function public.sync_profile_role_membership();
+
+do $$
+begin
+  perform public.sync_existing_auth_users();
+exception
+  when undefined_table then
+    null;
+end $$;
