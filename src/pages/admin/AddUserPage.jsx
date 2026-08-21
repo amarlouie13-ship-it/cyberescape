@@ -43,9 +43,14 @@ export default function AddUserPage() {
       setStatus({ type: 'success', message: data?.message || 'User created successfully.' });
       setForm({ email: '', username: '', password: '', confirmPassword: '', role: form.role });
     } catch (error) {
+      const backendMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Unable to create user.';
       setStatus({
         type: 'error',
-        message: error?.response?.data?.message || 'Unable to create user.',
+        message: backendMessage,
       });
     } finally {
       setSubmitting(false);

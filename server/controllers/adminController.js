@@ -11,6 +11,14 @@ function normalizeEmail(value) {
   return String(value ?? '').trim().toLowerCase();
 }
 
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value ?? '').trim());
+}
+
+function buildInternalEmail(username) {
+  return `${normalizeUsername(username)}@cyberescape.local`;
+}
+
 function buildStudentNumber() {
   return `STU-${randomUUID().slice(0, 8).toUpperCase()}`;
 }
@@ -118,13 +126,14 @@ export async function createUser(req, res, next) {
       return res.status(501).json({ message: 'Supabase not configured.' });
     }
 
-    const email = normalizeEmail(req.body?.email);
+    const emailInput = normalizeEmail(req.body?.email);
     const username = normalizeUsername(req.body?.username);
     const password = String(req.body?.password ?? '');
     const confirmPassword = String(req.body?.confirmPassword ?? '');
     const role = String(req.body?.role ?? '').toLowerCase();
+    const email = isValidEmail(emailInput) ? emailInput : buildInternalEmail(username);
 
-    if (!email || !username || !password || !confirmPassword || !role) {
+    if (!username || !password || !confirmPassword || !role) {
       return res.status(400).json({ message: 'All fields are required.' });
     }
 
@@ -157,8 +166,12 @@ export async function createUser(req, res, next) {
     });
 
     if (authError) {
-      if (authError.message?.toLowerCase().includes('already registered')) {
-        return res.status(409).json({ message: 'Username already exists.' });
+      const message = authError.message?.toLowerCase() ?? '';
+      if (message.includes('already registered')) {
+        return res.status(409).json({ message: 'Email already exists.' });
+      }
+      if (message.includes('invalid') && message.includes('email')) {
+        return res.status(400).json({ message: 'Please enter a valid email address.' });
       }
       throw authError;
     }
