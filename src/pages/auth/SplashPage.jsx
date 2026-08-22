@@ -1,48 +1,117 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import splashImage from "../assets/cyberescape-splash.png";
 
-export default function SplashPage() {
-  const navigate = useNavigate();
-  const [progress, setProgress] = useState(0);
+export default function SplashScreen() {
+  const [progress, setProgress] = useState(1);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setProgress((value) => {
-        const next = Math.min(100, value + 2);
-        if (next === 100) {
-          window.clearInterval(timer);
-          window.setTimeout(() => navigate('/auth/login', { replace: true }), 900);
-        }
-        return next;
-      });
-    }, 100);
+    const timer = setInterval(() => {
+      setProgress((current) => {
+        if (current >= 100) {
+          clearInterval(timer);
 
-    return () => window.clearInterval(timer);
-  }, [navigate]);
+          // Change this to your login route if needed
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 500);
+
+          return 100;
+        }
+
+        return current + 1;
+      });
+    }, 40);
+
+    return () => clearInterval(timer);
+  }, []);
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-[#020617]">
-      <img
-        src="/cyberescape-splash.png"
-        alt="CyberEscape splash screen"
-        className="absolute inset-0 h-full w-full object-contain object-[50%_38%] scale-[0.96] sm:scale-[1.0] md:scale-[1.03]"
-      />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.06),transparent_45%)]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#020617] via-[#020617]/70 to-transparent" />
+    <div className="min-h-screen w-full bg-[#010914] flex items-center justify-center overflow-hidden">
+      
+      {/* MAXIMUM OUTER BORDER */}
+      <div
+        className="
+          relative
+          w-[100vw]
+          h-[100vh]
+          max-w-none
+          border-2
+          border-cyan-500/60
+          rounded-[24px]
+          overflow-hidden
+          bg-[#020b17]
+          shadow-[0_0_35px_rgba(0,200,255,0.25)]
+        "
+      >
+        {/* BACKGROUND IMAGE */}
+        <img
+          src={splashImage}
+          alt="CyberEscape"
+          className="
+            absolute
+            inset-0
+            w-full
+            h-full
+            object-cover
+            object-center
+          "
+        />
 
-      <div className="absolute bottom-[5.5%] left-1/2 w-[min(32vw,280px)] -translate-x-1/2 text-center">
-        <div className="rounded-2xl border border-cyan-400/20 bg-slate-950/74 px-2 py-1.5 shadow-[0_0_20px_rgba(34,211,238,0.08)] backdrop-blur sm:px-2.5 sm:py-2">
-          <div className="mb-1.5 flex items-center justify-between text-[10px] text-slate-300 sm:text-[11px]">
-            <span>Loading secure environment...</span>
-            <span>{progress}%</span>
+        {/* DARK OVERLAY */}
+        <div className="absolute inset-0 bg-black/5" />
+
+        {/* LOADING SECTION */}
+        <div
+          className="
+            absolute
+            bottom-6
+            left-1/2
+            -translate-x-1/2
+            w-[90%]
+            max-w-[520px]
+            rounded-2xl
+            border
+            border-cyan-500/40
+            bg-[#020b18]/95
+            px-5
+            py-4
+            backdrop-blur-sm
+            shadow-[0_0_25px_rgba(0,200,255,0.12)]
+          "
+        >
+          {/* TEXT + PERCENTAGE */}
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm text-slate-200">
+              Loading secure environment...
+            </p>
+
+            <p className="text-sm font-semibold text-cyan-300">
+              {progress}%
+            </p>
           </div>
-          <div className="mx-auto h-2 w-[min(100%,180px)] overflow-hidden rounded-full bg-slate-800/90 ring-1 ring-cyan-400/10 sm:w-[min(100%,200px)]">
+
+          {/* LOADING BAR */}
+          <div className="h-3 w-full overflow-hidden rounded-full bg-slate-800">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-500 transition-all duration-150"
+              className="
+                h-full
+                rounded-full
+                bg-gradient-to-r
+                from-cyan-500
+                via-sky-400
+                to-cyan-300
+                transition-all
+                duration-100
+                shadow-[0_0_12px_rgba(34,211,238,0.8)]
+              "
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="mt-1 text-[11px] font-semibold tracking-wide text-cyan-200/90 sm:text-xs">Loading...</p>
+
+          {/* LOADING TEXT */}
+          <p className="mt-3 text-center font-semibold text-cyan-300">
+            {progress < 100 ? "Loading..." : "System Ready"}
+          </p>
         </div>
       </div>
     </div>

@@ -236,6 +236,22 @@ begin
 end;
 $$;
 
+create or replace function public.is_admin(user_id uuid default auth.uid())
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.profiles p
+    where p.id = user_id
+      and p.role = 'admin'
+      and p.status = 'active'
+  );
+$$;
+
 create or replace function public.ensure_admin_profile()
 returns trigger
 language plpgsql

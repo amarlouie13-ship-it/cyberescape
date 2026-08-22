@@ -103,8 +103,17 @@ async function ensureProfile(user) {
 }
 
 export function requireAuth(req, res, next) {
-  const header = req.headers.authorization || `Bearer ${req.headers['x-access-token'] || ''}`;
-  const [scheme, token] = header.split(' ');
+  const authorizationHeader = req.headers.authorization;
+  const xAccessToken = req.headers['x-access-token'];
+  const bodyAccessToken = req.body?.accessToken || req.body?.token;
+  const queryAccessToken = req.query?.accessToken || req.query?.token;
+  const header = authorizationHeader || (xAccessToken ? `Bearer ${xAccessToken}` : '');
+  const [scheme, ...tokenParts] = String(header).trim().split(/\s+/);
+  const token =
+    tokenParts.join(' ').trim() ||
+    String(xAccessToken ?? '').trim() ||
+    String(bodyAccessToken ?? '').trim() ||
+    String(queryAccessToken ?? '').trim();
 
   if (!supabaseAuth || !supabaseAdmin) {
     return res.status(500).json({
@@ -113,7 +122,7 @@ export function requireAuth(req, res, next) {
     });
   }
 
-  if (scheme?.toLowerCase() !== 'bearer' || !token) {
+  if (!token || (scheme && scheme.toLowerCase() !== 'bearer' && !xAccessToken && !bodyAccessToken && !queryAccessToken)) {
     return res.status(401).json({
       message: 'Authentication token is missing or invalid.',
       code: 'missing_bearer_or_config',

@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [form, setForm] = useState({ identifier: '', password: '', rememberMe: false, showPassword: false });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [didSubmitLogin, setDidSubmitLogin] = useState(false);
 
   const redirectByRole = (role) => {
     if (!role) return;
@@ -39,15 +40,16 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
-    if (!loading && user?.role) {
+    if (!loading && user?.role && didSubmitLogin) {
       redirectByRole(user.role);
     }
-  }, [loading, navigate, user]);
+  }, [didSubmitLogin, loading, navigate, user]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
     setError('');
+    setDidSubmitLogin(true);
 
     try {
       if (!supabase) {

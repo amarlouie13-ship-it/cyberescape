@@ -26,6 +26,32 @@ export default function AddUserPage() {
     [form.role],
   );
 
+  const getFreshAccessToken = async () => {
+    const { data: refreshedData } = await supabase.auth.refreshSession();
+    const refreshedToken = refreshedData?.session?.access_token ?? null;
+
+    if (refreshedToken) {
+      return refreshedToken;
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    return sessionData?.session?.access_token ?? null;
+  };
+
+  const submitCreateUser = async (accessToken) => {
+    return api.post('/admin/users', {
+      email: form.email,
+      username: form.username,
+      password: form.password,
+      confirmPassword: form.confirmPassword,
+      role: form.role,
+    }, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);
@@ -57,24 +83,12 @@ export default function AddUserPage() {
         return;
       }
 
-      const { data: sessionData, error: sessionError } = await supabase.auth.refreshSession();
-      const accessToken = sessionData?.session?.access_token;
-
-      if (sessionError) {
-        setStatus({
-          type: 'error',
-          message: sessionError.message || 'Unable to refresh your session. Please sign in again as an admin.',
-        });
-        navigate('/auth/login', { replace: true });
-        return;
-      }
-
+      const accessToken = await getFreshAccessToken();
       if (!accessToken) {
         setStatus({
           type: 'error',
-          message: 'Your session has expired. Please sign in again as an admin.',
+          message: 'Your session is stale. Please sign out and back in, then try again.',
         });
-        navigate('/auth/login', { replace: true });
         return;
       }
 
@@ -83,20 +97,27 @@ export default function AddUserPage() {
         return;
       }
 
-      const { data } = await api.post('/admin/users', {
-        email: form.email,
-        username: form.username,
-        password: form.password,
-        confirmPassword: form.confirmPassword,
-        role: form.role,
-      }, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'X-Access-Token': accessToken,
-        },
-      });
+      let response;
+      try {
+        response = await submitCreateUser(accessToken);
+      } catch (requestError) {
+        const responseCode = requestError?.response?.data?.code;
+        if (responseCode === 'token_validation_failed') {
+          const refreshedToken = await getFreshAccessToken();
 
-      setStatus({ type: 'success', message: data?.message || 'User created successfully.' });
+          if (!refreshedToken) {
+            throw requestError;
+          }
+
+          response = await submitCreateUser(refreshedToken);
+        } else {
+          throw requestError;
+        }
+      }
+
+      const responseBody = response.data;
+
+      setStatus({ type: 'success', message: responseBody?.message || 'User created successfully.' });
       setForm({ email: '', username: '', password: '', confirmPassword: '', role: form.role });
     } catch (error) {
       const backendMessage =
@@ -109,6 +130,15 @@ export default function AddUserPage() {
       const diagnosticSuffix = [backendCode ? `Code: ${backendCode}` : null, traceId ? `Trace: ${traceId}` : null]
         .filter(Boolean)
         .join(' | ');
+      if (backendCode === 'token_validation_failed') {
+        setStatus({
+          type: 'error',
+          message: diagnosticSuffix
+            ? `Your session is stale. Please sign out and back in, then try again. (${diagnosticSuffix})`
+            : 'Your session is stale. Please sign out and back in, then try again.',
+        });
+        return;
+      }
       setStatus({
         type: 'error',
         message:

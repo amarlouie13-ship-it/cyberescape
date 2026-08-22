@@ -30,60 +30,42 @@ for select using (auth.uid() = id);
 
 drop policy if exists "profiles admin full access" on public.profiles;
 create policy "profiles admin read" on public.profiles
-for select using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
-);
+for select using (public.is_admin());
 
 drop policy if exists "profiles admin insert" on public.profiles;
 create policy "profiles admin insert" on public.profiles
-for insert with check (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
-);
+for insert with check (public.is_admin());
 
 drop policy if exists "profiles admin update" on public.profiles;
 create policy "profiles admin update" on public.profiles
-for update using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
-)
-with check (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
-);
+for update using (public.is_admin())
+with check (public.is_admin());
 
 drop policy if exists "profiles admin delete" on public.profiles;
 create policy "profiles admin delete" on public.profiles
-for delete using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
-);
+for delete using (public.is_admin());
 
 drop policy if exists "students own data" on public.students;
 create policy "students own data" on public.students
 for select using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and (p.role = 'admin' or p.id = profile_id))
+  public.is_admin() or exists (select 1 from public.profiles p where p.id = auth.uid() and p.id = profile_id)
 );
 
 drop policy if exists "teachers own data" on public.teachers;
 create policy "teachers own data" on public.teachers
 for select using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and (p.role = 'admin' or p.id = profile_id))
+  public.is_admin() or exists (select 1 from public.profiles p where p.id = auth.uid() and p.id = profile_id)
 );
 
 drop policy if exists "students admin manage" on public.students;
 create policy "students admin manage" on public.students
-for all using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
-)
-with check (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
-);
+for all using (public.is_admin())
+with check (public.is_admin());
 
 drop policy if exists "teachers admin manage" on public.teachers;
 create policy "teachers admin manage" on public.teachers
-for all using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
-)
-with check (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
-);
+for all using (public.is_admin())
+with check (public.is_admin());
 
 drop policy if exists "game content read" on public.rooms;
 create policy "game content read" on public.rooms
@@ -194,9 +176,5 @@ for select using (
 
 drop policy if exists "admin manage everything" on public.activity_logs;
 create policy "admin manage everything" on public.activity_logs
-for all using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
-)
-with check (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')
-);
+for all using (public.is_admin())
+with check (public.is_admin());

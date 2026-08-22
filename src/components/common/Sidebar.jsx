@@ -29,13 +29,13 @@ export default function Sidebar({ brand, sections, footer }) {
         <h1 className="mt-2 text-2xl font-black text-white">{brand}</h1>
       </div>
       <nav className="mt-6 flex-1 space-y-6 overflow-y-auto pr-1">
-        {sections.map((section) => (
-          <div key={section.title}>
+        {sections.map((section, sectionIndex) => (
+          <div key={section.title || `section-${sectionIndex}`}>
             <p className="mb-3 text-xs uppercase tracking-[0.3em] text-slate-500">{section.title}</p>
             <div className="space-y-1">
-              {section.items.map((item) => (
+              {section.items.map((item, itemIndex) => (
                 <NavLink
-                  key={item.to}
+                  key={`${item.to}-${item.label}-${itemIndex}`}
                   to={item.to}
                   onClick={(event) => {
                     if (item.to.includes('#')) {
