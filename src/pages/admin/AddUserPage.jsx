@@ -6,7 +6,6 @@ import DashboardShell from '../../components/common/DashboardShell';
 import SectionCard from '../../components/common/SectionCard';
 import AdminLayout from '../../layouts/AdminLayout';
 import { api } from '../../services/api';
-import { supabase } from '../../services/supabase';
 
 const roleOptions = [
   { label: 'Admin', value: 'admin', description: 'Full system access' },
@@ -27,35 +26,14 @@ export default function AddUserPage() {
   );
 
 
-  const submitCreateUser = async (accessToken) => {
-    // Create auth user with Supabase
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+  const submitCreateUser = async () =>
+    api.post('/admin/users', {
       email: form.email,
+      username: form.username,
       password: form.password,
-      options: {
-        data: {
-          username: form.username,
-          role: form.role,
-          full_name: form.username,
-        },
-      },
+      confirmPassword: form.confirmPassword,
+      role: form.role,
     });
-
-    if (authError) {
-      throw new Error(authError.message);
-    }
-
-    // Wait a moment for the trigger to create the profile
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Return success response
-    return {
-      data: {
-        message: `User ${form.email} created successfully with ${form.role} role.`,
-        user: authData.user,
-      },
-    };
-  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -80,14 +58,6 @@ export default function AddUserPage() {
         return;
       }
 
-      if (!supabase) {
-        setStatus({
-          type: 'error',
-          message: 'Supabase is not configured in the frontend. Please check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
-        });
-        return;
-      }
-
       if (form.password !== form.confirmPassword) {
         setStatus({ type: 'error', message: 'Passwords do not match.' });
         return;
@@ -99,8 +69,20 @@ export default function AddUserPage() {
       setStatus({ type: 'success', message: responseBody?.message || 'User created successfully.' });
       setForm({ email: '', username: '', password: '', confirmPassword: '', role: form.role });
     } catch (error) {
-      const message = error?.message || 'Unable to create user.';
-      setStatus({ type: 'error', message });
+      const backendMessage = error?.response?.data?.message || error?.response?.data?.error;
+      const backendCode = error?.response?.data?.code;
+      const backendTrace = error?.response?.data?.traceId;
+      const message =
+        backendMessage ||
+        error?.message ||
+        'Unable to create user.';
+
+      setStatus({
+        type: 'error',
+        message: [message, backendCode ? `Code: ${backendCode}` : null, backendTrace ? `Trace: ${backendTrace}` : null]
+          .filter(Boolean)
+          .join(' | '),
+      });
     } finally {
       setSubmitting(false);
     }
