@@ -2,7 +2,41 @@ import axios from 'axios';
 import { supabase } from './supabase';
 
 const defaultBaseURL = '/api';
-const configuredBaseURL = import.meta.env.VITE_API_BASE_URL?.trim();
+
+function getLocalApiBaseURL() {
+  return 'http://localhost:4000/api';
+}
+
+function normalizeApiBaseURL(value) {
+  const input = String(value ?? '').trim().replace(/\/+$/, '');
+  if (!input) {
+    return defaultBaseURL;
+  }
+
+  return input.endsWith('/api') ? input : `${input}/api`;
+}
+
+function resolveApiBaseURL() {
+  const configured = normalizeApiBaseURL(import.meta.env.VITE_API_BASE_URL);
+
+  if (configured !== defaultBaseURL) {
+    return configured;
+  }
+
+  if (typeof window !== 'undefined') {
+    const origin = `${window.location.protocol}//${window.location.host}`;
+    const isLocalhost = /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?$/i.test(window.location.host)
+      || /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+
+    if (isLocalhost) {
+      return `${origin}/api`;
+    }
+  }
+
+  return defaultBaseURL;
+}
+
+const configuredBaseURL = resolveApiBaseURL();
 
 export const api = axios.create({
   baseURL: configuredBaseURL || defaultBaseURL,
@@ -51,6 +85,18 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return api(originalRequest);
       }
+    }
+
+    if (
+      originalRequest &&
+      !originalRequest._retry &&
+      error?.message === 'Network Error' &&
+      configuredBaseURL === defaultBaseURL &&
+      typeof window !== 'undefined'
+    ) {
+      originalRequest._retry = true;
+      originalRequest.baseURL = getLocalApiBaseURL();
+      return api(originalRequest);
     }
 
     return Promise.reject(error);

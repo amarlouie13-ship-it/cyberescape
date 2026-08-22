@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
 import { ShieldCheck, UserPlus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import DashboardShell from '../../components/common/DashboardShell';
 import SectionCard from '../../components/common/SectionCard';
 import AdminLayout from '../../layouts/AdminLayout';
 import { api } from '../../services/api';
+import { supabase } from '../../services/supabase';
 
 const roleOptions = [
   { label: 'Admin', value: 'admin', description: 'Full system access' },
@@ -12,6 +15,8 @@ const roleOptions = [
 ];
 
 export default function AddUserPage() {
+  const navigate = useNavigate();
+  const { user, loading } = useAuth();
   const [form, setForm] = useState({ email: '', username: '', password: '', confirmPassword: '', role: 'admin' });
   const [status, setStatus] = useState({ type: '', message: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -27,6 +32,41 @@ export default function AddUserPage() {
     setStatus({ type: '', message: '' });
 
     try {
+      if (loading) {
+        setStatus({ type: 'error', message: 'Please wait while we verify your session.' });
+        return;
+      }
+
+      if (!user) {
+        setStatus({ type: 'error', message: 'Please sign in before creating a user.' });
+        navigate('/auth/login', { replace: true });
+        return;
+      }
+
+      if (user.role !== 'admin') {
+        setStatus({ type: 'error', message: 'Only admins can create users.' });
+        navigate(`/${user.role}/dashboard`, { replace: true });
+        return;
+      }
+
+      if (!supabase) {
+        setStatus({
+          type: 'error',
+          message: 'Supabase is not configured in the frontend. Please check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
+        });
+        return;
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session?.access_token) {
+        setStatus({
+          type: 'error',
+          message: 'Your session has expired. Please sign in again as an admin.',
+        });
+        navigate('/auth/login', { replace: true });
+        return;
+      }
+
       if (form.password !== form.confirmPassword) {
         setStatus({ type: 'error', message: 'Passwords do not match.' });
         return;

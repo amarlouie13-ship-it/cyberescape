@@ -4,6 +4,8 @@ import { dirname, resolve } from 'node:path';
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(rootDir, '..');
+const nodeBin = process.execPath;
+const viteBin = resolve(projectRoot, 'node_modules', 'vite', 'bin', 'vite.js');
 
 function startProcess(command, args, label) {
   const child = spawn(command, args, {
@@ -27,9 +29,8 @@ function startProcess(command, args, label) {
   return child;
 }
 
-const server = startProcess('node', ['server/server.js'], 'server');
-const clientCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-const client = startProcess(clientCommand, ['run', 'dev', '--', '--host'], 'client');
+const server = startProcess(nodeBin, ['server/server.js'], 'server');
+const client = startProcess(nodeBin, [viteBin, '--host'], 'client');
 
 const shutdown = () => {
   server.kill();
