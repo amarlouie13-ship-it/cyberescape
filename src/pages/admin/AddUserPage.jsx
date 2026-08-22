@@ -58,7 +58,8 @@ export default function AddUserPage() {
       }
 
       const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session?.access_token) {
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) {
         setStatus({
           type: 'error',
           message: 'Your session has expired. Please sign in again as an admin.',
@@ -78,6 +79,10 @@ export default function AddUserPage() {
         password: form.password,
         confirmPassword: form.confirmPassword,
         role: form.role,
+      }, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
       setStatus({ type: 'success', message: data?.message || 'User created successfully.' });
