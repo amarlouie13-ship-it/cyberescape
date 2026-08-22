@@ -1,0 +1,46 @@
+import{u as d,r as t,j as e}from"./index-DEe0Dnsn.js";function b(){const r=d(),[a,l]=t.useState(1),[n,i]=t.useState(!1);return t.useEffect(()=>{if(n)return;const s=window.setInterval(()=>{l(o=>o>=100?(window.clearInterval(s),i(!0),window.setTimeout(()=>{r("/login",{replace:!0})},500),100):o+1)},40);return()=>window.clearInterval(s)},[r,n]),e.jsx("div",{className:"fixed inset-0 overflow-hidden bg-[#010914]",children:e.jsxs("div",{className:`
+          relative
+          m-1
+          h-[calc(100vh-8px)]
+          w-[calc(100vw-8px)]
+          overflow-hidden
+          rounded-[22px]
+          border-2
+          border-cyan-400/70
+          bg-[#020b17]
+          shadow-[0_0_0_1px_rgba(34,211,238,0.25),0_0_26px_rgba(34,211,238,0.18)]
+          before:absolute
+          before:inset-0
+          before:rounded-[20px]
+          before:border
+          before:border-cyan-300/20
+          before:content-['']
+          after:absolute
+          after:inset-0
+          after:bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.08),transparent_55%)]
+          after:content-['']
+        `,children:[e.jsx("img",{src:"/cyberescape-splash.png",alt:"CyberEscape",className:`
+            absolute
+            inset-0
+            h-full
+            w-full
+            object-cover
+            object-center
+          `}),e.jsx("div",{className:"pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(2,11,23,0.12),rgba(2,11,23,0.38))]"}),e.jsx("div",{className:"pointer-events-none absolute inset-0 rounded-[22px] shadow-[inset_0_0_70px_rgba(2,132,199,0.12)]"}),e.jsxs("div",{className:`
+            absolute
+            bottom-4
+            left-1/2
+            w-[min(92vw,520px)]
+            -translate-x-1/2
+            rounded-2xl
+            border
+            border-cyan-400/30
+            bg-slate-950/78
+            px-4
+            py-3.5
+            backdrop-blur-md
+            shadow-[0_0_24px_rgba(34,211,238,0.12)]
+            sm:bottom-6
+            sm:px-5
+            sm:py-4
+          `,children:[e.jsxs("div",{className:"mb-3 flex items-center justify-between gap-3 text-[11px] text-slate-200 sm:text-sm",children:[e.jsx("p",{className:"truncate",children:"Loading secure environment..."}),e.jsx("p",{className:"shrink-0 font-semibold text-cyan-300",children:n?"Ready!":`${a}%`})]}),e.jsx("div",{className:"h-3 w-full overflow-hidden rounded-full bg-slate-800/90 ring-1 ring-cyan-400/10",children:e.jsx("div",{className:"h-full rounded-full bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-500 transition-all duration-150 ease-out",style:{width:`${a}%`}})}),e.jsx("p",{className:"mt-2 text-center text-[11px] font-semibold tracking-wide text-cyan-200/90 sm:text-xs",children:n?"Ready!":"Loading..."})]})]})})}export{b as default};

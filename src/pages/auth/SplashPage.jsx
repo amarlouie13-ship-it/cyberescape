@@ -1,20 +1,22 @@
-import { useEffect, useState } from "react";
-import splashImage from "../assets/cyberescape-splash.png";
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function SplashScreen() {
+  const navigate = useNavigate();
   const [progress, setProgress] = useState(1);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    if (ready) return undefined;
+
+    const timer = window.setInterval(() => {
       setProgress((current) => {
         if (current >= 100) {
-          clearInterval(timer);
-
-          // Change this to your login route if needed
-          setTimeout(() => {
-            window.location.href = "/login";
+          window.clearInterval(timer);
+          setReady(true);
+          window.setTimeout(() => {
+            navigate('/login', { replace: true });
           }, 500);
-
           return 100;
         }
 
@@ -22,95 +24,86 @@ export default function SplashScreen() {
       });
     }, 40);
 
-    return () => clearInterval(timer);
-  }, []);
+    return () => window.clearInterval(timer);
+  }, [navigate, ready]);
 
   return (
-    <div className="min-h-screen w-full bg-[#010914] flex items-center justify-center overflow-hidden">
-      
-      {/* MAXIMUM OUTER BORDER */}
+    <div className="fixed inset-0 overflow-hidden bg-[#010914]">
       <div
         className="
           relative
-          w-[100vw]
-          h-[100vh]
-          max-w-none
-          border-2
-          border-cyan-500/60
-          rounded-[24px]
+          m-1
+          h-[calc(100vh-8px)]
+          w-[calc(100vw-8px)]
           overflow-hidden
+          rounded-[22px]
+          border-2
+          border-cyan-400/70
           bg-[#020b17]
-          shadow-[0_0_35px_rgba(0,200,255,0.25)]
+          shadow-[0_0_0_1px_rgba(34,211,238,0.25),0_0_26px_rgba(34,211,238,0.18)]
+          before:absolute
+          before:inset-0
+          before:rounded-[20px]
+          before:border
+          before:border-cyan-300/20
+          before:content-['']
+          after:absolute
+          after:inset-0
+          after:bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.08),transparent_55%)]
+          after:content-['']
         "
       >
-        {/* BACKGROUND IMAGE */}
         <img
-          src={splashImage}
+          src="/cyberescape-splash.png"
           alt="CyberEscape"
           className="
             absolute
             inset-0
-            w-full
             h-full
+            w-full
             object-cover
             object-center
           "
         />
 
-        {/* DARK OVERLAY */}
-        <div className="absolute inset-0 bg-black/5" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(2,11,23,0.12),rgba(2,11,23,0.38))]" />
 
-        {/* LOADING SECTION */}
+        <div className="pointer-events-none absolute inset-0 rounded-[22px] shadow-[inset_0_0_70px_rgba(2,132,199,0.12)]" />
+
         <div
           className="
             absolute
-            bottom-6
+            bottom-4
             left-1/2
+            w-[min(92vw,520px)]
             -translate-x-1/2
-            w-[90%]
-            max-w-[520px]
             rounded-2xl
             border
-            border-cyan-500/40
-            bg-[#020b18]/95
-            px-5
-            py-4
-            backdrop-blur-sm
-            shadow-[0_0_25px_rgba(0,200,255,0.12)]
+            border-cyan-400/30
+            bg-slate-950/78
+            px-4
+            py-3.5
+            backdrop-blur-md
+            shadow-[0_0_24px_rgba(34,211,238,0.12)]
+            sm:bottom-6
+            sm:px-5
+            sm:py-4
           "
         >
-          {/* TEXT + PERCENTAGE */}
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm text-slate-200">
-              Loading secure environment...
-            </p>
-
-            <p className="text-sm font-semibold text-cyan-300">
-              {progress}%
-            </p>
+          <div className="mb-3 flex items-center justify-between gap-3 text-[11px] text-slate-200 sm:text-sm">
+            <p className="truncate">Loading secure environment...</p>
+            <p className="shrink-0 font-semibold text-cyan-300">{ready ? 'Ready!' : `${progress}%`}</p>
           </div>
 
-          {/* LOADING BAR */}
-          <div className="h-3 w-full overflow-hidden rounded-full bg-slate-800">
+          <div className="h-3 w-full overflow-hidden rounded-full bg-slate-800/90 ring-1 ring-cyan-400/10">
             <div
-              className="
-                h-full
-                rounded-full
-                bg-gradient-to-r
-                from-cyan-500
-                via-sky-400
-                to-cyan-300
-                transition-all
-                duration-100
-                shadow-[0_0_12px_rgba(34,211,238,0.8)]
-              "
+              className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-500 transition-all duration-150 ease-out"
               style={{ width: `${progress}%` }}
             />
           </div>
 
-          {/* LOADING TEXT */}
-          <p className="mt-3 text-center font-semibold text-cyan-300">
-            {progress < 100 ? "Loading..." : "System Ready"}
+          <p className="mt-2 text-center text-[11px] font-semibold tracking-wide text-cyan-200/90 sm:text-xs">
+            {ready ? 'Ready!' : 'Loading...'}
           </p>
         </div>
       </div>

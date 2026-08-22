@@ -17,6 +17,7 @@ const TeacherReportsPage = lazy(() => import('../pages/teacher/TeacherReportsPag
 
 export const appRoutes = [
   { path: '/auth/splash', element: <SplashPage /> },
+  { path: '/login', element: <LoginPage /> },
   { path: '/auth/login', element: <LoginPage /> },
   {
     path: '/admin/dashboard',
