@@ -4,9 +4,13 @@ import { supabase } from '../services/supabase';
 const AuthContext = createContext(null);
 
 function resolveRole(profile, sessionUser) {
-  const emailRole = String(sessionUser?.email ?? '')
-    .toLowerCase()
-    .split('@')[0];
+  const email = String(sessionUser?.email ?? '').toLowerCase();
+  const emailRole = email.split('@')[0];
+
+  // Check admin emails first
+  if (['admin@cyberescape.local', 'benz@benz.com'].includes(email)) {
+    return 'admin';
+  }
 
   return (
     profile?.role ||

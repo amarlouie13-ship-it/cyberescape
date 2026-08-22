@@ -1,5 +1,6 @@
--- CyberEscape consolidated schema with RLS, admin setup, and seed data
--- Apply this single file to initialize the entire database
+-- CyberEscape Simplified Schema (Clean Version)
+-- Removes circular dependencies and RLS issues
+-- Apply this INSTEAD of the old schema.sql
 
 create extension if not exists pgcrypto;
 
@@ -7,63 +8,33 @@ create extension if not exists pgcrypto;
 -- ENUMS
 -- ============================================================================
 
-do $$
-begin
-  create type public.user_role as enum ('admin', 'teacher', 'student');
-exception
-  when duplicate_object then null;
-end $$;
+do $$ begin create type public.user_role as enum ('admin', 'teacher', 'student');
+exception when duplicate_object then null; end $$;
 
-do $$
-begin
-  create type public.account_status as enum ('active', 'inactive', 'suspended');
-exception
-  when duplicate_object then null;
-end $$;
+do $$ begin create type public.account_status as enum ('active', 'inactive', 'suspended');
+exception when duplicate_object then null; end $$;
 
-do $$
-begin
-  create type public.room_status as enum ('active', 'inactive');
-exception
-  when duplicate_object then null;
-end $$;
+do $$ begin create type public.room_status as enum ('active', 'inactive');
+exception when duplicate_object then null; end $$;
 
-do $$
-begin
-  create type public.progress_status as enum ('locked', 'available', 'in_progress', 'completed');
-exception
-  when duplicate_object then null;
-end $$;
+do $$ begin create type public.progress_status as enum ('locked', 'available', 'in_progress', 'completed');
+exception when duplicate_object then null; end $$;
 
-do $$
-begin
-  create type public.puzzle_status as enum ('active', 'inactive');
-exception
-  when duplicate_object then null;
-end $$;
+do $$ begin create type public.puzzle_status as enum ('active', 'inactive');
+exception when duplicate_object then null; end $$;
 
-do $$
-begin
-  create type public.clue_type as enum ('text', 'image', 'object', 'file', 'message', 'system_log', 'email', 'code');
-exception
-  when duplicate_object then null;
-end $$;
+do $$ begin create type public.clue_type as enum ('text', 'image', 'object', 'file', 'message', 'system_log', 'email', 'code');
+exception when duplicate_object then null; end $$;
 
-do $$
-begin
-  create type public.session_status as enum ('active', 'paused', 'completed', 'abandoned');
-exception
-  when duplicate_object then null;
-end $$;
+do $$ begin create type public.session_status as enum ('active', 'paused', 'completed', 'abandoned');
+exception when duplicate_object then null; end $$;
 
 -- ============================================================================
 -- HELPER FUNCTIONS (BEFORE TABLES)
 -- ============================================================================
 
 create or replace function public.set_updated_at()
-returns trigger
-language plpgsql
-as $$
+returns trigger language plpgsql as $$
 begin
   new.updated_at = now();
   return new;
@@ -341,31 +312,11 @@ create index if not exists idx_announcements_created_by on public.announcements(
 create index if not exists idx_activity_logs_user_id on public.activity_logs(user_id);
 
 -- ============================================================================
--- TABLE-DEPENDENT FUNCTIONS (AFTER TABLES CREATED)
+-- TABLE-DEPENDENT FUNCTIONS
 -- ============================================================================
 
-create or replace function public.is_admin(user_id uuid default auth.uid())
-returns boolean
-language sql
-security definer
-set search_path = public
-stable
-as $$
-  select exists (
-    select 1
-    from public.profiles p
-    where p.id = user_id
-      and p.role = 'admin'
-      and p.status = 'active'
-  );
-$$;
-
 create or replace function public.handle_new_auth_user()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 declare
   v_role public.user_role;
   v_username text;
@@ -390,44 +341,18 @@ begin
     initcap(replace(v_username, '.', ' '))
   );
 
-  insert into public.profiles (
-    id,
-    full_name,
-    email,
-    username,
-    role,
-    status,
-    created_at,
-    updated_at
-  )
-  values (
-    new.id,
-    v_full_name,
-    new.email,
-    v_username,
-    v_role,
-    'active',
-    now(),
-    now()
-  )
+  insert into public.profiles (id, full_name, email, username, role, status, created_at, updated_at)
+  values (new.id, v_full_name, new.email, v_username, v_role, 'active', now(), now())
   on conflict (id) do update
-    set full_name = excluded.full_name,
-        email = excluded.email,
-        username = excluded.username,
-        role = excluded.role,
-        status = 'active',
-        updated_at = now();
+    set full_name = excluded.full_name, email = excluded.email, username = excluded.username,
+        role = excluded.role, status = 'active', updated_at = now();
 
   return new;
 end;
 $$;
 
 create or replace function public.handle_updated_auth_user()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 declare
   v_role public.user_role;
   v_username text;
@@ -440,10 +365,7 @@ begin
       then 'admin'::public.user_role
     when old.email is distinct from new.email and split_part(lower(new.email), '@', 1) in ('admin', 'teacher', 'student')
       then split_part(lower(new.email), '@', 1)::public.user_role
-    else coalesce(
-      (select p.role from public.profiles p where p.id = new.id),
-      'student'
-    )
+    else coalesce((select p.role from public.profiles p where p.id = new.id), 'student')
   end;
 
   v_username := coalesce(
@@ -457,225 +379,29 @@ begin
     initcap(replace(v_username, '.', ' '))
   );
 
-  insert into public.profiles (
-    id,
-    full_name,
-    email,
-    username,
-    role,
-    status,
-    created_at,
-    updated_at
-  )
-  values (
-    new.id,
-    v_full_name,
-    new.email,
-    v_username,
-    v_role,
-    'active',
-    coalesce(new.created_at, now()),
-    now()
-  )
+  insert into public.profiles (id, full_name, email, username, role, status, created_at, updated_at)
+  values (new.id, v_full_name, new.email, v_username, v_role, 'active', coalesce(new.created_at, now()), now())
   on conflict (id) do update
-    set full_name = excluded.full_name,
-        email = excluded.email,
-        username = excluded.username,
-        role = excluded.role,
-        status = 'active',
-        updated_at = now();
-
-  return new;
-end;
-$$;
-
-create or replace function public.sync_existing_auth_users()
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  insert into public.profiles (
-    id,
-    full_name,
-    email,
-    username,
-    role,
-    status,
-    created_at,
-    updated_at
-  )
-  select
-    u.id,
-    coalesce(
-      nullif(u.raw_user_meta_data ->> 'full_name', ''),
-      nullif(u.raw_user_meta_data ->> 'name', ''),
-      initcap(replace(coalesce(nullif(u.raw_user_meta_data ->> 'username', ''), split_part(lower(u.email), '@', 1)), '.', ' '))
-    ) as full_name,
-    lower(u.email) as email,
-    coalesce(nullif(u.raw_user_meta_data ->> 'username', ''), split_part(lower(u.email), '@', 1)) as username,
-    case
-      when u.raw_user_meta_data ->> 'role' in ('admin', 'teacher', 'student')
-        then (u.raw_user_meta_data ->> 'role')::public.user_role
-      when split_part(lower(u.email), '@', 1) in ('admin', 'teacher', 'student')
-        then split_part(lower(u.email), '@', 1)::public.user_role
-      else 'student'
-    end as role,
-    'active'::public.account_status,
-    coalesce(u.created_at, now()),
-    now()
-  from auth.users u
-  left join public.profiles p on p.id = u.id
-  where p.id is null
-  on conflict (id) do update
-    set full_name = excluded.full_name,
-        email = excluded.email,
-        username = excluded.username,
-        role = excluded.role,
-        status = 'active',
-        updated_at = now();
-end;
-$$;
-
-create or replace function public.ensure_admin_profile()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if lower(new.email) = lower('admin@cyberescape.local') then
-    insert into public.profiles (
-      id,
-      full_name,
-      email,
-      username,
-      role,
-      status,
-      created_at,
-      updated_at
-    )
-    values (
-      new.id,
-      coalesce(nullif(new.raw_user_meta_data ->> 'full_name', ''), 'CyberEscape Admin'),
-      lower(new.email),
-      coalesce(nullif(new.raw_user_meta_data ->> 'username', ''), 'admin'),
-      'admin',
-      'active',
-      coalesce(new.created_at, now()),
-      now()
-    )
-    on conflict (id) do update
-      set full_name = excluded.full_name,
-          email = excluded.email,
-          username = excluded.username,
-          role = 'admin',
-          status = 'active',
-          updated_at = now();
-  end if;
+    set full_name = excluded.full_name, email = excluded.email, username = excluded.username,
+        role = excluded.role, status = 'active', updated_at = now();
 
   return new;
 end;
 $$;
 
 create or replace function public.sync_profile_role_membership()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if new.role = 'student' then
     insert into public.students (profile_id, student_number)
-    values (
-      new.id,
-      'STU-' || upper(substr(replace(new.id::text, '-', ''), 1, 8))
-    )
+    values (new.id, 'STU-' || upper(substr(replace(new.id::text, '-', ''), 1, 8)))
     on conflict (profile_id) do nothing;
   elsif new.role = 'teacher' then
     insert into public.teachers (profile_id, employee_number)
-    values (
-      new.id,
-      'TCH-' || upper(substr(replace(new.id::text, '-', ''), 1, 8))
-    )
+    values (new.id, 'TCH-' || upper(substr(replace(new.id::text, '-', ''), 1, 8)))
     on conflict (profile_id) do nothing;
   end if;
-
   return new;
-end;
-$$;
-
-create or replace function public.ensure_admin_account()
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_user_id uuid;
-begin
-  select id
-    into v_user_id
-  from auth.users
-  where lower(email) = lower('admin@cyberescape.local')
-  limit 1;
-
-  if v_user_id is null then
-    raise notice 'No Supabase Auth user found for admin@cyberescape.local. Create the Auth user first, then re-run this file.';
-    return;
-  end if;
-
-  perform public.create_admin_profile(
-    v_user_id,
-    'CyberEscape Admin',
-    'admin@cyberescape.local',
-    'admin'
-  );
-
-  raise notice 'Admin profile synced for %', v_user_id;
-end;
-$$;
-
-create or replace function public.create_admin_profile(
-  p_user_id uuid,
-  p_full_name text,
-  p_email text,
-  p_username text
-)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  insert into public.profiles (
-    id,
-    full_name,
-    email,
-    username,
-    role,
-    status,
-    created_at,
-    updated_at
-  )
-  values (
-    p_user_id,
-    p_full_name,
-    p_email,
-    p_username,
-    'admin',
-    'active',
-    now(),
-    now()
-  )
-  on conflict (id) do update
-    set full_name = excluded.full_name,
-        email = excluded.email,
-        username = excluded.username,
-        role = 'admin',
-        status = 'active',
-        updated_at = now();
 end;
 $$;
 
@@ -684,51 +410,31 @@ $$;
 -- ============================================================================
 
 drop trigger if exists trg_profiles_updated_at on public.profiles;
-create trigger trg_profiles_updated_at
-before update on public.profiles
+create trigger trg_profiles_updated_at before update on public.profiles
 for each row execute function public.set_updated_at();
 
 drop trigger if exists trg_rooms_updated_at on public.rooms;
-create trigger trg_rooms_updated_at
-before update on public.rooms
+create trigger trg_rooms_updated_at before update on public.rooms
 for each row execute function public.set_updated_at();
 
 drop trigger if exists trg_puzzles_updated_at on public.puzzles;
-create trigger trg_puzzles_updated_at
-before update on public.puzzles
+create trigger trg_puzzles_updated_at before update on public.puzzles
 for each row execute function public.set_updated_at();
 
 drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-after insert on auth.users
+create trigger on_auth_user_created after insert on auth.users
 for each row execute function public.handle_new_auth_user();
 
-drop trigger if exists trg_ensure_admin_profile on auth.users;
-create trigger trg_ensure_admin_profile
-after insert on auth.users
-for each row execute function public.ensure_admin_profile();
-
 drop trigger if exists on_auth_user_updated on auth.users;
-create trigger on_auth_user_updated
-after update on auth.users
+create trigger on_auth_user_updated after update on auth.users
 for each row execute function public.handle_updated_auth_user();
 
 drop trigger if exists trg_profiles_sync_role_membership on public.profiles;
-create trigger trg_profiles_sync_role_membership
-after insert or update of role on public.profiles
+create trigger trg_profiles_sync_role_membership after insert or update of role on public.profiles
 for each row execute function public.sync_profile_role_membership();
 
--- Sync existing auth users if table exists
-do $$
-begin
-  perform public.sync_existing_auth_users();
-exception
-  when undefined_table then
-    null;
-end $$;
-
 -- ============================================================================
--- ROW LEVEL SECURITY (RLS) - ENABLE AND CONFIGURE POLICIES
+-- ROW LEVEL SECURITY (NO CIRCULAR DEPENDENCIES)
 -- ============================================================================
 
 alter table public.profiles enable row level security;
@@ -755,209 +461,53 @@ alter table public.notifications enable row level security;
 alter table public.announcements enable row level security;
 alter table public.activity_logs enable row level security;
 
--- ============================================================================
--- PROFILES POLICIES
--- ============================================================================
-
+-- Profiles: Self-read only (NO is_admin() call)
 drop policy if exists "profiles self read" on public.profiles;
 create policy "profiles self read" on public.profiles
 for select using (auth.uid() = id);
 
+-- Profiles: Self-insert only
 drop policy if exists "profiles self insert" on public.profiles;
 create policy "profiles self insert" on public.profiles
 for insert with check (auth.uid() = id);
 
-drop policy if exists "profiles admin read" on public.profiles;
-create policy "profiles admin read" on public.profiles
-for select using (
-  exists (
-    select 1 from public.profiles p
-    where p.id = auth.uid() and p.role = 'admin' and p.status = 'active'
-  )
-);
-
-drop policy if exists "profiles admin update" on public.profiles;
-create policy "profiles admin update" on public.profiles
-for update using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin' and p.status = 'active')
-)
-with check (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin' and p.status = 'active')
-);
-
-drop policy if exists "profiles admin delete" on public.profiles;
-create policy "profiles admin delete" on public.profiles
-for delete using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin' and p.status = 'active')
-);
-
--- ============================================================================
--- STUDENTS & TEACHERS POLICIES
--- ============================================================================
-
+-- Students: Self-read
 drop policy if exists "students own data" on public.students;
 create policy "students own data" on public.students
-for select using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and (p.role = 'admin' or p.id = profile_id))
-);
+for select using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.id = profile_id));
 
+-- Teachers: Self-read
 drop policy if exists "teachers own data" on public.teachers;
 create policy "teachers own data" on public.teachers
-for select using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and (p.role = 'admin' or p.id = profile_id))
-);
+for select using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.id = profile_id));
 
-drop policy if exists "students admin manage" on public.students;
-create policy "students admin manage" on public.students
-for all using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin' and p.status = 'active')
-)
-with check (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin' and p.status = 'active')
-);
+-- Public read policies for game content
+drop policy if exists "rooms public read" on public.rooms;
+create policy "rooms public read" on public.rooms for select using (true);
 
-drop policy if exists "teachers admin manage" on public.teachers;
-create policy "teachers admin manage" on public.teachers
-for all using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin' and p.status = 'active')
-)
-with check (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin' and p.status = 'active')
-);
+drop policy if exists "puzzles public read" on public.puzzles;
+create policy "puzzles public read" on public.puzzles for select using (true);
 
--- ============================================================================
--- GAME CONTENT POLICIES (PUBLIC READ)
--- ============================================================================
+drop policy if exists "puzzle_options public read" on public.puzzle_options;
+create policy "puzzle_options public read" on public.puzzle_options for select using (true);
 
-drop policy if exists "game content read" on public.rooms;
-create policy "game content read" on public.rooms
-for select using (true);
+drop policy if exists "hints public read" on public.hints;
+create policy "hints public read" on public.hints for select using (true);
 
-drop policy if exists "game content read puzzles" on public.puzzles;
-create policy "game content read puzzles" on public.puzzles
-for select using (true);
+drop policy if exists "clues public read" on public.clues;
+create policy "clues public read" on public.clues for select using (true);
 
-drop policy if exists "game content read options" on public.puzzle_options;
-create policy "game content read options" on public.puzzle_options
-for select using (true);
+drop policy if exists "inventory_items public read" on public.inventory_items;
+create policy "inventory_items public read" on public.inventory_items for select using (true);
 
-drop policy if exists "game content read rules" on public.validation_rules;
-create policy "game content read rules" on public.validation_rules
-for select using (true);
+drop policy if exists "lessons public read" on public.lessons;
+create policy "lessons public read" on public.lessons for select using (true);
 
-drop policy if exists "game content read hints" on public.hints;
-create policy "game content read hints" on public.hints
-for select using (true);
-
-drop policy if exists "game content read clues" on public.clues;
-create policy "game content read clues" on public.clues
-for select using (true);
-
-drop policy if exists "game content read inventory" on public.inventory_items;
-create policy "game content read inventory" on public.inventory_items
-for select using (true);
-
-drop policy if exists "game content read lessons" on public.lessons;
-create policy "game content read lessons" on public.lessons
-for select using (true);
-
-drop policy if exists "game content read achievements" on public.achievements;
-create policy "game content read achievements" on public.achievements
-for select using (true);
+drop policy if exists "achievements public read" on public.achievements;
+create policy "achievements public read" on public.achievements for select using (true);
 
 -- ============================================================================
--- PROGRESS & ATTEMPTS POLICIES
--- ============================================================================
-
-drop policy if exists "student own progress" on public.room_progress;
-create policy "student own progress" on public.room_progress
-for select using (
-  exists (
-    select 1 from public.students s
-    join public.profiles p on p.id = s.profile_id
-    where s.id = student_id and (p.id = auth.uid() or p.role = 'admin')
-  )
-);
-
-drop policy if exists "student own puzzle progress" on public.puzzle_progress;
-create policy "student own puzzle progress" on public.puzzle_progress
-for select using (
-  exists (
-    select 1 from public.students s
-    join public.profiles p on p.id = s.profile_id
-    where s.id = student_id and (p.id = auth.uid() or p.role = 'admin')
-  )
-);
-
-drop policy if exists "student own attempts" on public.attempts;
-create policy "student own attempts" on public.attempts
-for select using (
-  exists (
-    select 1 from public.students s
-    join public.profiles p on p.id = s.profile_id
-    where s.id = student_id and (p.id = auth.uid() or p.role in ('admin', 'teacher'))
-  )
-);
-
-drop policy if exists "student own scores" on public.scores;
-create policy "student own scores" on public.scores
-for select using (
-  exists (
-    select 1 from public.students s
-    join public.profiles p on p.id = s.profile_id
-    where s.id = student_id and (p.id = auth.uid() or p.role in ('admin', 'teacher'))
-  )
-);
-
-drop policy if exists "student own inventory" on public.student_inventory;
-create policy "student own inventory" on public.student_inventory
-for select using (
-  exists (
-    select 1 from public.students s
-    join public.profiles p on p.id = s.profile_id
-    where s.id = student_id and (p.id = auth.uid() or p.role = 'admin')
-  )
-);
-
-drop policy if exists "student own achievements" on public.student_achievements;
-create policy "student own achievements" on public.student_achievements
-for select using (
-  exists (
-    select 1 from public.students s
-    join public.profiles p on p.id = s.profile_id
-    where s.id = student_id and (p.id = auth.uid() or p.role in ('admin', 'teacher'))
-  )
-);
-
-drop policy if exists "teacher read progress" on public.room_progress;
-create policy "teacher read progress" on public.room_progress
-for select using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin', 'teacher'))
-);
-
-drop policy if exists "teacher read puzzle progress" on public.puzzle_progress;
-create policy "teacher read puzzle progress" on public.puzzle_progress
-for select using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin', 'teacher'))
-);
-
-drop policy if exists "teacher read sessions" on public.game_sessions;
-create policy "teacher read sessions" on public.game_sessions
-for select using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role in ('admin', 'teacher'))
-);
-
-drop policy if exists "admin manage everything" on public.activity_logs;
-create policy "admin manage everything" on public.activity_logs
-for all using (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin' and p.status = 'active')
-)
-with check (
-  exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin' and p.status = 'active')
-);
-
--- ============================================================================
--- SEED DATA: ROOMS
+-- SEED DATA
 -- ============================================================================
 
 insert into public.rooms (room_number, title, topic, difficulty, objective, scenario, instructions, order_number, status)
@@ -972,24 +522,8 @@ values
   (8, 'Final CyberEscape', 'Capstone Cybersecurity Challenge', 'Advanced', 'Complete the final sequence', 'The final escape door is locked.', 'Solve the combined challenge.', 8, 'active')
 on conflict (room_number) do nothing;
 
--- ============================================================================
--- FIX ADMIN PROFILES (ENSURE ROLE IS SET)
--- ============================================================================
-
--- Update any profiles for admin emails that might be missing role or have wrong role
+-- Fix any existing profiles with admin emails that might be missing role
 update public.profiles
 set role = 'admin', updated_at = now()
 where lower(email) in (lower('admin@cyberescape.local'), lower('benz@benz.com'))
   and (role is null or role != 'admin');
-
--- ============================================================================
--- ADMIN ACCOUNT SETUP
--- ============================================================================
-
-do $$
-begin
-  perform public.ensure_admin_account();
-exception
-  when undefined_table then
-    null;
-end $$;

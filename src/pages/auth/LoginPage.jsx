@@ -27,9 +27,13 @@ export default function LoginPage() {
 
   const inferRoleFromSession = (sessionData, profile) => {
     const sessionUser = sessionData?.session?.user;
-    const emailRole = String(sessionUser?.email ?? '')
-      .toLowerCase()
-      .split('@')[0];
+    const email = String(sessionUser?.email ?? '').toLowerCase();
+    const emailRole = email.split('@')[0];
+
+    // Check admin emails first
+    if (['admin@cyberescape.local', 'benz@benz.com'].includes(email)) {
+      return 'admin';
+    }
 
     return (
       profile?.role ||

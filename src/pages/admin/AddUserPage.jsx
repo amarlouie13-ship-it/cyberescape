@@ -26,30 +26,35 @@ export default function AddUserPage() {
     [form.role],
   );
 
-  const getFreshAccessToken = async () => {
-    const { data: refreshedData } = await supabase.auth.refreshSession();
-    const refreshedToken = refreshedData?.session?.access_token ?? null;
-
-    if (refreshedToken) {
-      return refreshedToken;
-    }
-
-    const { data: sessionData } = await supabase.auth.getSession();
-    return sessionData?.session?.access_token ?? null;
-  };
 
   const submitCreateUser = async (accessToken) => {
-    return api.post('/admin/users', {
+    // Create auth user with Supabase
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email: form.email,
-      username: form.username,
       password: form.password,
-      confirmPassword: form.confirmPassword,
-      role: form.role,
-    }, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
+      options: {
+        data: {
+          username: form.username,
+          role: form.role,
+          full_name: form.username,
+        },
       },
     });
+
+    if (authError) {
+      throw new Error(authError.message);
+    }
+
+    // Wait a moment for the trigger to create the profile
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Return success response
+    return {
+      data: {
+        message: `User ${form.email} created successfully with ${form.role} role.`,
+        user: authData.user,
+      },
+    };
   };
 
   const handleSubmit = async (event) => {
@@ -83,71 +88,19 @@ export default function AddUserPage() {
         return;
       }
 
-      const accessToken = await getFreshAccessToken();
-      if (!accessToken) {
-        setStatus({
-          type: 'error',
-          message: 'Your session is stale. Please sign out and back in, then try again.',
-        });
-        return;
-      }
-
       if (form.password !== form.confirmPassword) {
         setStatus({ type: 'error', message: 'Passwords do not match.' });
         return;
       }
 
-      let response;
-      try {
-        response = await submitCreateUser(accessToken);
-      } catch (requestError) {
-        const responseCode = requestError?.response?.data?.code;
-        if (responseCode === 'token_validation_failed') {
-          const refreshedToken = await getFreshAccessToken();
-
-          if (!refreshedToken) {
-            throw requestError;
-          }
-
-          response = await submitCreateUser(refreshedToken);
-        } else {
-          throw requestError;
-        }
-      }
-
+      const response = await submitCreateUser();
       const responseBody = response.data;
 
       setStatus({ type: 'success', message: responseBody?.message || 'User created successfully.' });
       setForm({ email: '', username: '', password: '', confirmPassword: '', role: form.role });
     } catch (error) {
-      const backendMessage =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.message ||
-        'Unable to create user.';
-      const backendCode = error?.response?.data?.code;
-      const traceId = error?.response?.data?.traceId;
-      const diagnosticSuffix = [backendCode ? `Code: ${backendCode}` : null, traceId ? `Trace: ${traceId}` : null]
-        .filter(Boolean)
-        .join(' | ');
-      if (backendCode === 'token_validation_failed') {
-        setStatus({
-          type: 'error',
-          message: diagnosticSuffix
-            ? `Your session is stale. Please sign out and back in, then try again. (${diagnosticSuffix})`
-            : 'Your session is stale. Please sign out and back in, then try again.',
-        });
-        return;
-      }
-      setStatus({
-        type: 'error',
-        message:
-          backendMessage === 'Network Error'
-            ? 'Unable to reach the API server. Make sure the backend is running.'
-            : diagnosticSuffix
-              ? `${backendMessage} (${diagnosticSuffix})`
-              : backendMessage,
-      });
+      const message = error?.message || 'Unable to create user.';
+      setStatus({ type: 'error', message });
     } finally {
       setSubmitting(false);
     }
