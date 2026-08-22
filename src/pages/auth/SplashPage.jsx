@@ -61,8 +61,10 @@ export default function SplashScreen() {
             inset-0
             h-full
             w-full
-            object-cover
+            object-contain
             object-center
+            scale-[0.98]
+            sm:scale-[1.01]
           "
         />
 

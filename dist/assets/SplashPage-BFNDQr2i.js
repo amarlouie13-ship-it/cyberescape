@@ -1,4 +1,4 @@
-import{u as d,r as t,j as e}from"./index-DEe0Dnsn.js";function b(){const r=d(),[a,l]=t.useState(1),[n,i]=t.useState(!1);return t.useEffect(()=>{if(n)return;const s=window.setInterval(()=>{l(o=>o>=100?(window.clearInterval(s),i(!0),window.setTimeout(()=>{r("/login",{replace:!0})},500),100):o+1)},40);return()=>window.clearInterval(s)},[r,n]),e.jsx("div",{className:"fixed inset-0 overflow-hidden bg-[#010914]",children:e.jsxs("div",{className:`
+import{u as d,r as t,j as e}from"./index-B83nTNAK.js";function b(){const a=d(),[s,l]=t.useState(1),[n,i]=t.useState(!1);return t.useEffect(()=>{if(n)return;const r=window.setInterval(()=>{l(o=>o>=100?(window.clearInterval(r),i(!0),window.setTimeout(()=>{a("/login",{replace:!0})},500),100):o+1)},40);return()=>window.clearInterval(r)},[a,n]),e.jsx("div",{className:"fixed inset-0 overflow-hidden bg-[#010914]",children:e.jsxs("div",{className:`
           relative
           m-1
           h-[calc(100vh-8px)]
@@ -24,8 +24,10 @@ import{u as d,r as t,j as e}from"./index-DEe0Dnsn.js";function b(){const r=d(),[
             inset-0
             h-full
             w-full
-            object-cover
+            object-contain
             object-center
+            scale-[0.98]
+            sm:scale-[1.01]
           `}),e.jsx("div",{className:"pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(2,11,23,0.12),rgba(2,11,23,0.38))]"}),e.jsx("div",{className:"pointer-events-none absolute inset-0 rounded-[22px] shadow-[inset_0_0_70px_rgba(2,132,199,0.12)]"}),e.jsxs("div",{className:`
             absolute
             bottom-4
@@ -43,4 +45,4 @@ import{u as d,r as t,j as e}from"./index-DEe0Dnsn.js";function b(){const r=d(),[
             sm:bottom-6
             sm:px-5
             sm:py-4
-          `,children:[e.jsxs("div",{className:"mb-3 flex items-center justify-between gap-3 text-[11px] text-slate-200 sm:text-sm",children:[e.jsx("p",{className:"truncate",children:"Loading secure environment..."}),e.jsx("p",{className:"shrink-0 font-semibold text-cyan-300",children:n?"Ready!":`${a}%`})]}),e.jsx("div",{className:"h-3 w-full overflow-hidden rounded-full bg-slate-800/90 ring-1 ring-cyan-400/10",children:e.jsx("div",{className:"h-full rounded-full bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-500 transition-all duration-150 ease-out",style:{width:`${a}%`}})}),e.jsx("p",{className:"mt-2 text-center text-[11px] font-semibold tracking-wide text-cyan-200/90 sm:text-xs",children:n?"Ready!":"Loading..."})]})]})})}export{b as default};
+          `,children:[e.jsxs("div",{className:"mb-3 flex items-center justify-between gap-3 text-[11px] text-slate-200 sm:text-sm",children:[e.jsx("p",{className:"truncate",children:"Loading secure environment..."}),e.jsx("p",{className:"shrink-0 font-semibold text-cyan-300",children:n?"Ready!":`${s}%`})]}),e.jsx("div",{className:"h-3 w-full overflow-hidden rounded-full bg-slate-800/90 ring-1 ring-cyan-400/10",children:e.jsx("div",{className:"h-full rounded-full bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-500 transition-all duration-150 ease-out",style:{width:`${s}%`}})}),e.jsx("p",{className:"mt-2 text-center text-[11px] font-semibold tracking-wide text-cyan-200/90 sm:text-xs",children:n?"Ready!":"Loading..."})]})]})})}export{b as default};
