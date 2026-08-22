@@ -10,6 +10,40 @@
 -- The password must be created in Supabase Auth for the matching user.
 -- This file only syncs the public.profiles row.
 
+create or replace function public.ensure_admin_account()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid;
+begin
+  select id
+    into v_user_id
+  from auth.users
+  where lower(email) = lower('admin@cyberescape.local')
+  limit 1;
+
+  if v_user_id is null then
+    raise notice 'No Supabase Auth user found for admin@cyberescape.local. Create the Auth user first, then re-run this file.';
+    return;
+  end if;
+
+  perform public.create_admin_profile(
+    v_user_id,
+    'CyberEscape Admin',
+    'admin@cyberescape.local',
+    'admin'
+  );
+
+  raise notice 'Admin profile synced for %', v_user_id;
+end;
+$$;
+
+comment on function public.ensure_admin_account is
+'Synchronizes the admin auth user into public.profiles.';
+
 create or replace function public.create_admin_profile(
   p_user_id uuid,
   p_full_name text,
@@ -56,26 +90,8 @@ comment on function public.create_admin_profile is
 'Creates or updates an admin profile row for a Supabase Auth user.';
 
 do $$
-declare
-  v_user_id uuid;
 begin
-  select id
-    into v_user_id
-  from auth.users
-  where lower(email) = lower('admin@cyberescape.local')
-  limit 1;
-
-  if v_user_id is null then
-    raise notice 'No Supabase Auth user found for admin@cyberescape.local. Create the Auth user first, then re-run this file.';
-  else
-    perform public.create_admin_profile(
-      v_user_id,
-      'CyberEscape Admin',
-      'admin@cyberescape.local',
-      'admin'
-    );
-    raise notice 'Admin profile synced for %', v_user_id;
-  end if;
+  perform public.ensure_admin_account();
 end;
 $$;
 

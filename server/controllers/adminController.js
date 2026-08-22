@@ -33,6 +33,14 @@ function logAccountPhase(traceId, phase, details = {}) {
   console.info(`[createUser:${traceId}] ${phase}`, details);
 }
 
+function sendSupabaseError(res, status, message, traceId, error) {
+  return res.status(status).json({
+    message,
+    code: error?.code ?? 'supabase_error',
+    traceId,
+  });
+}
+
 export async function listRooms(_req, res, next) {
   try {
     if (!supabaseAdmin) {
@@ -195,6 +203,7 @@ export async function createUser(req, res, next) {
       logAccountPhase(traceId, 'auth_create_failed', {
         message: authError.message,
         code: authError.code,
+        status: authError.status,
       });
       const message = authError.message?.toLowerCase() ?? '';
       if (message.includes('already registered')) {
@@ -203,7 +212,25 @@ export async function createUser(req, res, next) {
       if (message.includes('invalid') && message.includes('email')) {
         return res.status(400).json({ message: 'Please enter a valid email address.' });
       }
-      throw authError;
+      if (authError.status === 404) {
+        return sendSupabaseError(
+          res,
+          502,
+          'Supabase auth endpoint was not found. Check SUPABASE_URL and service role configuration.',
+          traceId,
+          authError,
+        );
+      }
+      if (authError.status === 401 || authError.status === 403) {
+        return sendSupabaseError(
+          res,
+          502,
+          'Supabase rejected the admin credentials. Check SUPABASE_SERVICE_ROLE_KEY.',
+          traceId,
+          authError,
+        );
+      }
+      return sendSupabaseError(res, 502, 'Failed to create the auth user in Supabase.', traceId, authError);
     }
 
     const userId = authData.user.id;
@@ -265,7 +292,12 @@ export async function createUser(req, res, next) {
     logAccountPhase(traceId, 'unhandled_error', {
       message: error?.message,
       code: error?.code,
+      status: error?.status,
     });
-    next(error);
+    return res.status(500).json({
+      message: error?.message || 'Unexpected backend error while creating user.',
+      code: error?.code || 'internal_error',
+      traceId,
+    });
   }
 }

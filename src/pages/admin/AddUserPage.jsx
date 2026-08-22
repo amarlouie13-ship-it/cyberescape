@@ -32,7 +32,7 @@ export default function AddUserPage() {
         return;
       }
 
-      const { data } = await api.post('/api/admin/users', {
+      const { data } = await api.post('/admin/users', {
         email: form.email,
         username: form.username,
         password: form.password,
@@ -57,7 +57,7 @@ export default function AddUserPage() {
         type: 'error',
         message:
           backendMessage === 'Network Error'
-            ? 'Unable to reach the API server. Make sure the backend is running on port 4000.'
+            ? 'Unable to reach the API server. Make sure the backend is running.'
             : diagnosticSuffix
               ? `${backendMessage} (${diagnosticSuffix})`
               : backendMessage,

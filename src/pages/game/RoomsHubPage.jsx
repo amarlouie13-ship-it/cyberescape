@@ -8,7 +8,7 @@ export default function RoomsHubPage() {
   const [rooms, setRooms] = useState([]);
 
   useEffect(() => {
-    api.get('/api/game/rooms').then(({ data }) => setRooms(data.rooms ?? []));
+    api.get('/game/rooms').then(({ data }) => setRooms(data.rooms ?? []));
   }, []);
 
   return (

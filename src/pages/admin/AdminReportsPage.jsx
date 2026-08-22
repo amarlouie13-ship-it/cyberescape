@@ -8,7 +8,7 @@ export default function AdminReportsPage() {
   const [totals, setTotals] = useState(null);
 
   useEffect(() => {
-    api.get('/api/dashboard/admin/reports').then(({ data }) => setTotals(data.totals ?? data));
+    api.get('/dashboard/admin/reports').then(({ data }) => setTotals(data.totals ?? data));
   }, []);
 
   const cards = [

@@ -8,7 +8,7 @@ export default function TeacherReportsPage() {
   const [totals, setTotals] = useState(null);
 
   useEffect(() => {
-    api.get('/api/dashboard/teacher/reports').then(({ data }) => setTotals(data.totals ?? data));
+    api.get('/dashboard/teacher/reports').then(({ data }) => setTotals(data.totals ?? data));
   }, []);
 
   const cards = [

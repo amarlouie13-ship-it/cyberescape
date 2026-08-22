@@ -9,7 +9,7 @@ export default function PuzzleManagementPage() {
   const [message, setMessage] = useState('');
 
   const loadPuzzles = async () => {
-    const { data } = await api.get('/api/admin/puzzles');
+    const { data } = await api.get('/admin/puzzles');
     setPuzzles(data.puzzles ?? []);
   };
 
@@ -91,9 +91,9 @@ export default function PuzzleManagementPage() {
               </div>
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <button type="button" onClick={() => persistPuzzle('post', '/api/admin/puzzles', { room_id: puzzles[0]?.room_id, title: 'New Puzzle', puzzle_type: 'exact', question: 'Sample', instructions: 'Sample', base_score: 1000, attempt_penalty: 50, order_number: 1, status: 'active' })} className="rounded-2xl bg-cyan-400 px-4 py-2 font-semibold text-slate-950">Create Puzzle</button>
-                <button type="button" onClick={() => puzzles[0] && persistPuzzle('put', `/api/admin/puzzles/${puzzles[0].id}`, { title: puzzles[0].title })} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white">Edit Puzzle</button>
-                <button type="button" onClick={() => puzzles[0] && persistPuzzle('delete', `/api/admin/puzzles/${puzzles[0].id}`)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white">Delete Puzzle</button>
+                <button type="button" onClick={() => persistPuzzle('post', '/admin/puzzles', { room_id: puzzles[0]?.room_id, title: 'New Puzzle', puzzle_type: 'exact', question: 'Sample', instructions: 'Sample', base_score: 1000, attempt_penalty: 50, order_number: 1, status: 'active' })} className="rounded-2xl bg-cyan-400 px-4 py-2 font-semibold text-slate-950">Create Puzzle</button>
+                <button type="button" onClick={() => puzzles[0] && persistPuzzle('put', `/admin/puzzles/${puzzles[0].id}`, { title: puzzles[0].title })} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white">Edit Puzzle</button>
+                <button type="button" onClick={() => puzzles[0] && persistPuzzle('delete', `/admin/puzzles/${puzzles[0].id}`)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white">Delete Puzzle</button>
                 <button type="button" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white">Assign to Room</button>
                 <button type="button" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white">Configure Rules</button>
                 <button type="button" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white">Configure Hints</button>

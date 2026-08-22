@@ -40,5 +40,16 @@ export const createApp = () => {
 
   app.use('/api', routes);
 
+  app.use((error, _req, res, _next) => {
+    // Keep API failures JSON-shaped so the frontend can display useful messages.
+    // eslint-disable-next-line no-console
+    console.error('[api:error]', error?.message, error?.code ?? '', error?.status ?? '');
+    const status = Number.isInteger(error?.status) && error.status >= 400 ? error.status : 500;
+    res.status(status).json({
+      message: error?.message || 'Unexpected backend error.',
+      code: error?.code || 'internal_error',
+    });
+  });
+
   return app;
 };

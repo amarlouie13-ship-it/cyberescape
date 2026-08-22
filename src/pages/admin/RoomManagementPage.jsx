@@ -26,7 +26,7 @@ export default function RoomManagementPage() {
 
   const loadRooms = async () => {
     setLoading(true);
-    const { data } = await api.get('/api/admin/rooms');
+    const { data } = await api.get('/admin/rooms');
     const list = data.rooms ?? [];
     setRooms(list);
     setActiveRoom(list[0] ?? null);
@@ -118,10 +118,10 @@ export default function RoomManagementPage() {
               </div>
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <button type="button" onClick={() => persistRoom('post', '/api/admin/rooms', { ...activeRoom, status })} className="rounded-2xl bg-cyan-400 px-4 py-2 font-semibold text-slate-950">Create Room</button>
-                <button type="button" onClick={() => activeRoom && persistRoom('put', `/api/admin/rooms/${activeRoom.id}`, { ...activeRoom, status })} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white">Edit Room</button>
-                <button type="button" onClick={() => activeRoom && persistRoom('put', `/api/admin/rooms/${activeRoom.id}`, { status: 'active' })} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white">Activate Room</button>
-                <button type="button" onClick={() => activeRoom && persistRoom('put', `/api/admin/rooms/${activeRoom.id}`, { status: 'inactive' })} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white">Deactivate Room</button>
+                <button type="button" onClick={() => persistRoom('post', '/admin/rooms', { ...activeRoom, status })} className="rounded-2xl bg-cyan-400 px-4 py-2 font-semibold text-slate-950">Create Room</button>
+                <button type="button" onClick={() => activeRoom && persistRoom('put', `/admin/rooms/${activeRoom.id}`, { ...activeRoom, status })} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white">Edit Room</button>
+                <button type="button" onClick={() => activeRoom && persistRoom('put', `/admin/rooms/${activeRoom.id}`, { status: 'active' })} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white">Activate Room</button>
+                <button type="button" onClick={() => activeRoom && persistRoom('put', `/admin/rooms/${activeRoom.id}`, { status: 'inactive' })} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white">Deactivate Room</button>
                 <button type="button" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 font-semibold text-white">Reorder Room</button>
               </div>
               {message ? <p className="mt-4 text-sm text-cyan-300">{message}</p> : null}
