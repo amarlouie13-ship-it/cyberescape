@@ -9,7 +9,7 @@ function startProcess(command, args, label) {
   const child = spawn(command, args, {
     cwd: projectRoot,
     stdio: 'inherit',
-    shell: true,
+    shell: false,
   });
 
   child.on('exit', (code) => {
@@ -28,7 +28,8 @@ function startProcess(command, args, label) {
 }
 
 const server = startProcess('node', ['server/server.js'], 'server');
-const client = startProcess('npm', ['run', 'dev', '--', '--host'], 'client');
+const clientCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const client = startProcess(clientCommand, ['run', 'dev', '--', '--host'], 'client');
 
 const shutdown = () => {
   server.kill();
