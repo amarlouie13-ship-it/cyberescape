@@ -103,10 +103,17 @@ async function ensureProfile(user) {
 }
 
 export function requireAuth(req, res, next) {
-  const header = req.headers.authorization || '';
+  const header = req.headers.authorization || `Bearer ${req.headers['x-access-token'] || ''}`;
   const [scheme, token] = header.split(' ');
 
-  if (scheme?.toLowerCase() !== 'bearer' || !token || !supabaseAuth || !supabaseAdmin) {
+  if (!supabaseAuth || !supabaseAdmin) {
+    return res.status(500).json({
+      message: 'Supabase auth is not configured on the backend.',
+      code: 'supabase_auth_not_configured',
+    });
+  }
+
+  if (scheme?.toLowerCase() !== 'bearer' || !token) {
     return res.status(401).json({
       message: 'Authentication token is missing or invalid.',
       code: 'missing_bearer_or_config',

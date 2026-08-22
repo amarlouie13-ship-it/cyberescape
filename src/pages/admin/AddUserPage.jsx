@@ -57,8 +57,18 @@ export default function AddUserPage() {
         return;
       }
 
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } = await supabase.auth.refreshSession();
       const accessToken = sessionData?.session?.access_token;
+
+      if (sessionError) {
+        setStatus({
+          type: 'error',
+          message: sessionError.message || 'Unable to refresh your session. Please sign in again as an admin.',
+        });
+        navigate('/auth/login', { replace: true });
+        return;
+      }
+
       if (!accessToken) {
         setStatus({
           type: 'error',
@@ -82,6 +92,7 @@ export default function AddUserPage() {
       }, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
+          'X-Access-Token': accessToken,
         },
       });
 
