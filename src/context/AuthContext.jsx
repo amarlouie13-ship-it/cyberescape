@@ -3,6 +3,11 @@ import { supabase } from '../services/supabase';
 
 const AuthContext = createContext(null);
 
+function normalizeRole(role) {
+  const value = String(role ?? '').trim().toLowerCase();
+  return ['admin', 'teacher', 'student'].includes(value) ? value : null;
+}
+
 function resolveRole(profile, sessionUser) {
   const email = String(sessionUser?.email ?? '').toLowerCase();
   const emailRole = email.split('@')[0];
@@ -13,9 +18,9 @@ function resolveRole(profile, sessionUser) {
   }
 
   return (
-    profile?.role ||
-    sessionUser?.user_metadata?.role ||
-    sessionUser?.app_metadata?.role ||
+    normalizeRole(profile?.role) ||
+    normalizeRole(sessionUser?.user_metadata?.role) ||
+    normalizeRole(sessionUser?.app_metadata?.role) ||
     (['admin', 'teacher', 'student'].includes(emailRole) ? emailRole : null)
   );
 }
@@ -32,7 +37,7 @@ function buildUser(profile, sessionUser) {
     full_name: profile?.full_name ?? sessionUser.user_metadata?.full_name ?? '',
     email: profile?.email ?? sessionUser.email ?? '',
     username: profile?.username ?? sessionUser.user_metadata?.username ?? '',
-    role,
+    role: normalizeRole(role),
     status: profile?.status ?? 'active',
   };
 }

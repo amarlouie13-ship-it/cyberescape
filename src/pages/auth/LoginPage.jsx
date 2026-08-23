@@ -12,13 +12,19 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [didSubmitLogin, setDidSubmitLogin] = useState(false);
 
+  const normalizeRole = (role) => {
+    const value = String(role ?? '').trim().toLowerCase();
+    return ['admin', 'teacher', 'student'].includes(value) ? value : null;
+  };
+
   const redirectByRole = (role) => {
-    if (!role) return;
+    const normalizedRole = normalizeRole(role);
+    if (!normalizedRole) return;
 
     const destination =
-      role === 'admin'
+      normalizedRole === 'admin'
         ? '/admin/dashboard'
-        : role === 'teacher'
+        : normalizedRole === 'teacher'
           ? '/teacher/dashboard'
           : '/student/dashboard';
 
@@ -36,9 +42,9 @@ export default function LoginPage() {
     }
 
     return (
-      profile?.role ||
-      sessionUser?.user_metadata?.role ||
-      sessionUser?.app_metadata?.role ||
+      normalizeRole(profile?.role) ||
+      normalizeRole(sessionUser?.user_metadata?.role) ||
+      normalizeRole(sessionUser?.app_metadata?.role) ||
       (['admin', 'teacher', 'student'].includes(emailRole) ? emailRole : null)
     );
   };

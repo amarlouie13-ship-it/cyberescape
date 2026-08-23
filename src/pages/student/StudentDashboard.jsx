@@ -3,9 +3,11 @@ import DashboardShell from '../../components/common/DashboardShell';
 import SectionCard from '../../components/common/SectionCard';
 import StatCard from '../../components/common/StatCard';
 import StudentLayout from '../../layouts/StudentLayout';
+import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 
 export default function StudentDashboard() {
+  const { user } = useAuth();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -24,14 +26,16 @@ export default function StudentDashboard() {
     };
   }, []);
 
+  const displayName = user?.username?.trim() || user?.full_name?.trim() || 'Student';
+
   return (
     <StudentLayout>
       {({ sidebar, onMenuClick }) => (
         <DashboardShell
           sidebar={sidebar}
           onMenuClick={onMenuClick}
-          title="Student Dashboard"
-          subtitle="Welcome back, Student! Continue your cybersecurity mission."
+          title={`${displayName} Dashboard`}
+          subtitle={`Welcome back, ${displayName}! Continue your cybersecurity mission.`}
         >
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

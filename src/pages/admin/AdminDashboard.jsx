@@ -1,19 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BellRing, Search } from 'lucide-react';
-import { BarChart, Bar, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import DashboardShell from '../../components/common/DashboardShell';
 import SectionCard from '../../components/common/SectionCard';
 import StatCard from '../../components/common/StatCard';
 import AdminLayout from '../../layouts/AdminLayout';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
-
-const registrations = [
-  { name: 'Teachers', value: 18 },
-  { name: 'Students', value: 54 },
-];
-
-const completion = [{ name: 'Completion', value: 68, fill: '#22D3EE' }];
 
 const adminOverview = {
   rooms: [
@@ -30,22 +21,32 @@ const adminOverview = {
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const searchPlaceholder = useMemo(() => `Search as ${user?.full_name ?? 'Admin'}`, [user?.full_name]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let mounted = true;
-    api
+  const loadSummary = () => {
+    setLoading(true);
+    return api
       .get('/api/dashboard/admin/dashboard')
       .then(({ data }) => {
-        if (mounted) setSummary(data);
+        setSummary(data);
       })
       .finally(() => {
-        if (mounted) setLoading(false);
+        setLoading(false);
       });
+  };
+
+  const displayName = user?.username?.trim() || user?.full_name?.trim() || 'Admin';
+
+  useEffect(() => {
+    loadSummary();
+    const handleUsersUpdated = () => {
+      loadSummary();
+    };
+
+    window.addEventListener('admin-users-updated', handleUsersUpdated);
     return () => {
-      mounted = false;
+      window.removeEventListener('admin-users-updated', handleUsersUpdated);
     };
   }, []);
 
@@ -55,8 +56,8 @@ export default function AdminDashboard() {
         <DashboardShell
           sidebar={sidebar}
           onMenuClick={onMenuClick}
-          title="Dashboard"
-          subtitle="Monitor the CyberEscape ecosystem"
+          title={`${displayName} Dashboard`}
+          subtitle={`Welcome back, ${displayName}! Monitor the CyberEscape ecosystem.`}
         >
           <div className="space-y-6">
             <div id="overview" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
@@ -66,42 +67,6 @@ export default function AdminDashboard() {
               <StatCard label="Rooms" value={loading ? '...' : summary?.rooms ?? 0} subtext="CyberEscape rooms" accent="teal" />
               <StatCard label="Puzzles" value={loading ? '...' : summary?.puzzles ?? 0} subtext="Validation challenges" accent="green" />
               <StatCard label="Active Players" value={loading ? '...' : summary?.activePlayers ?? 0} subtext="Currently in session" accent="amber" />
-            </div>
-
-            <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-              <SectionCard
-                id="users"
-                title="User Registration"
-                subtitle="Last 7 Days"
-                action={
-                  <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-300">
-                    <Search size={16} />
-                    <span>{searchPlaceholder}</span>
-                  </div>
-                }
-              >
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={registrations}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                      <XAxis dataKey="name" stroke="#94A3B8" />
-                      <YAxis stroke="#94A3B8" />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="value" fill="#22D3EE" radius={[12, 12, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </SectionCard>
-
-              <SectionCard id="settings" title="System Status" subtitle="Realtime health overview">
-                <div className="space-y-4 text-sm text-slate-300">
-                  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">Database connected</div>
-                  <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4">Authentication active</div>
-                  <div className="rounded-2xl border border-blue-400/20 bg-blue-400/10 p-4">Room validation online</div>
-                  <div className="rounded-2xl border border-purple-400/20 bg-purple-400/10 p-4">Activity logging enabled</div>
-                </div>
-              </SectionCard>
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">

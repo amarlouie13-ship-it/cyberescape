@@ -9,25 +9,26 @@ const sections = [
   {
     title: 'Player',
     items: [
-      { label: 'My Progress', to: '/student/dashboard#progress', icon: BarChart3 },
-      { label: 'Rooms', to: '/student/dashboard#rooms', icon: Boxes },
-      { label: 'Inventory', to: '/student/dashboard#inventory', icon: Gem },
-      { label: 'Leaderboard', to: '/student/dashboard#leaderboard', icon: Trophy },
-      { label: 'Achievements', to: '/student/dashboard#achievements', icon: Trophy },
-      { label: 'Lessons Learned', to: '/student/dashboard#lessons', icon: BookOpen },
-      { label: 'Profile', to: '/student/dashboard#profile', icon: User },
-      { label: 'Settings', to: '/student/dashboard#settings', icon: Settings },
+      { label: 'My Progress', to: '/student/progress', icon: BarChart3 },
+      { label: 'Rooms', to: '/student/rooms', icon: Boxes },
+      { label: 'Inventory', to: '/student/inventory', icon: Gem },
+      { label: 'Leaderboard', to: '/student/leaderboard', icon: Trophy },
+      { label: 'Achievements', to: '/student/achievements', icon: Trophy },
+      { label: 'Lessons Learned', to: '/student/lessons', icon: BookOpen },
+      { label: 'Profile', to: '/student/profile', icon: User },
+      { label: 'Settings', to: '/student/settings', icon: Settings },
     ],
   },
 ];
 
 export default function StudentLayout({ children }) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [open, setOpen] = useState(false);
+  const brandLabel = user?.username?.trim() || user?.full_name?.trim() || 'Student';
 
   const sidebar = (
     <Sidebar
-      brand="Student"
+      brand={brandLabel}
       sections={sections}
       footer={
         <button type="button" onClick={logout} className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-slate-200">

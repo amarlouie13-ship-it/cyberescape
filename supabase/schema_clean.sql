@@ -11,7 +11,7 @@ create extension if not exists pgcrypto;
 do $$ begin create type public.user_role as enum ('admin', 'teacher', 'student');
 exception when duplicate_object then null; end $$;
 
-do $$ begin create type public.account_status as enum ('active', 'inactive', 'suspended');
+do $$ begin create type public.account_status as enum ('active', 'inactive', 'suspended', 'online', 'offline');
 exception when duplicate_object then null; end $$;
 
 do $$ begin create type public.room_status as enum ('active', 'inactive');
@@ -70,6 +70,14 @@ create table if not exists public.teachers (
   profile_id uuid not null unique references public.profiles(id) on delete cascade,
   employee_number text,
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.teacher_student_assignments (
+  id uuid primary key default gen_random_uuid(),
+  teacher_id uuid not null references public.profiles(id) on delete cascade,
+  student_id uuid not null references public.profiles(id) on delete cascade,
+  assigned_at timestamptz not null default now(),
+  unique (teacher_id, student_id)
 );
 
 create table if not exists public.rooms (
@@ -321,6 +329,7 @@ declare
   v_role public.user_role;
   v_username text;
   v_full_name text;
+  v_status public.account_status;
 begin
   v_role := case
     when new.raw_user_meta_data ->> 'role' in ('admin', 'teacher', 'student')
@@ -341,11 +350,17 @@ begin
     initcap(replace(v_username, '.', ' '))
   );
 
+  v_status := case
+    when lower(coalesce(new.raw_user_meta_data ->> 'status', 'offline')) in ('online', 'offline')
+      then lower(new.raw_user_meta_data ->> 'status')::public.account_status
+    else 'offline'::public.account_status
+  end;
+
   insert into public.profiles (id, full_name, email, username, role, status, created_at, updated_at)
-  values (new.id, v_full_name, new.email, v_username, v_role, 'active', now(), now())
+  values (new.id, v_full_name, new.email, v_username, v_role, v_status, now(), now())
   on conflict (id) do update
     set full_name = excluded.full_name, email = excluded.email, username = excluded.username,
-        role = excluded.role, status = 'active', updated_at = now();
+        role = excluded.role, status = excluded.status, updated_at = now();
 
   return new;
 end;
