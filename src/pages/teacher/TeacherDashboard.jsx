@@ -4,6 +4,7 @@ import DashboardShell from '../../components/common/DashboardShell';
 import SectionCard from '../../components/common/SectionCard';
 import StatCard from '../../components/common/StatCard';
 import TeacherLayout from '../../layouts/TeacherLayout';
+import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 
 function EmptyState({ message, subtext }) {
