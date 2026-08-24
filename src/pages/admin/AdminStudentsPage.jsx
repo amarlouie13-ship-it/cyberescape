@@ -43,7 +43,7 @@ export default function AdminStudentsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/api/admin/students');
+      const { data } = await api.get('/admin/students');
       setSummary(data ?? { students: [], totals: null });
     } finally {
       setLoading(false);
@@ -91,7 +91,7 @@ export default function AdminStudentsPage() {
 
   const createStudent = async (event) => {
     event.preventDefault();
-    await api.post('/api/admin/users', {
+    await api.post('/admin/users', {
       email: form.email,
       username: form.username,
       password: form.password,

@@ -72,8 +72,6 @@ export const api = axios.create({
 
 api.interceptors.request.use(async (config) => {
   config.headers = config.headers ?? {};
-  config.headers['X-Request-Id'] =
-    config.headers['X-Request-Id'] || `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
   if (config.headers.Authorization) {
     return config;
@@ -126,7 +124,7 @@ api.interceptors.response.use(
       typeof window !== 'undefined'
     ) {
       originalRequest._retry = true;
-      originalRequest.baseURL = `${window.location.protocol}//${window.location.hostname}:4001/api`;
+      originalRequest.baseURL = `${window.location.protocol}//${window.location.hostname}:4000/api`;
       return api(originalRequest);
     }
 

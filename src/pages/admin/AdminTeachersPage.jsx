@@ -38,7 +38,7 @@ export default function AdminTeachersPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/api/admin/teachers');
+      const { data } = await api.get('/admin/teachers');
       setSummary(data ?? { teachers: [], totals: null });
     } finally {
       setLoading(false);
@@ -80,7 +80,7 @@ export default function AdminTeachersPage() {
 
   const createTeacher = async (event) => {
     event.preventDefault();
-    await api.post('/api/admin/users', {
+    await api.post('/admin/users', {
       email: form.email,
       username: form.username,
       password: form.password,

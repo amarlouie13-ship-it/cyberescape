@@ -36,6 +36,33 @@ function buildEmployeeNumber() {
   return `TCH-${randomUUID().slice(0, 8).toUpperCase()}`;
 }
 
+async function syncRoleMembership(userId, role) {
+  if (!supabaseAdmin) {
+    return;
+  }
+
+  if (role === 'student') {
+    await supabaseAdmin.from('students').upsert(
+      {
+        profile_id: userId,
+        student_number: buildStudentNumber(),
+      },
+      { onConflict: 'profile_id' },
+    );
+    return;
+  }
+
+  if (role === 'teacher') {
+    await supabaseAdmin.from('teachers').upsert(
+      {
+        profile_id: userId,
+        employee_number: buildEmployeeNumber(),
+      },
+      { onConflict: 'profile_id' },
+    );
+  }
+}
+
 function logAccountPhase(traceId, phase, details = {}) {
   // Keep logs structured so we can follow account creation step-by-step.
   // eslint-disable-next-line no-console
@@ -460,6 +487,11 @@ export async function createUser(req, res, next) {
         username,
         email,
         role,
+        full_name: fullName,
+        status: 'active',
+      },
+      app_metadata: {
+        role,
       },
     });
 
@@ -497,79 +529,38 @@ export async function createUser(req, res, next) {
       return sendSupabaseError(res, 502, 'Failed to create the auth user in Supabase.', traceId, authError);
     }
 
-    const userId = authData.user.id;
+    const userId = authData?.user?.id;
+    if (!userId) {
+      logAccountPhase(traceId, 'auth_create_missing_user_id', { authDataKeys: Object.keys(authData ?? {}) });
+      return res.status(502).json({
+        message: 'Supabase created the auth user but did not return a user id.',
+        code: 'missing_user_id',
+        traceId,
+      });
+    }
+
     logAccountPhase(traceId, 'auth_create_succeeded', { userId });
 
-    logAccountPhase(traceId, 'upserting_profile');
-    const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
-      id: userId,
-      full_name: fullName,
-      email,
-      username,
-      role,
-      status: status === 'online' ? 'online' : 'offline',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'id' });
-
+    logAccountPhase(traceId, 'syncing_profile_record');
+    const { error: profileError } = await supabaseAdmin.from('profiles').upsert(
+      {
+        id: userId,
+        full_name: fullName,
+        email,
+        username,
+        role,
+        status: status || 'active',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' },
+    );
     if (profileError) {
-      logAccountPhase(traceId, 'profile_upsert_failed', {
-        message: profileError.message,
-        code: profileError.code,
-      });
-      if (isUniqueViolation(profileError)) {
-        return res.status(409).json({
-          message: 'A profile with that email or username already exists.',
-          code: profileError.code ?? 'unique_violation',
-          traceId,
-        });
-      }
       throw profileError;
     }
 
-    if (role === 'student') {
-      logAccountPhase(traceId, 'upserting_student_row');
-      const { error } = await supabaseAdmin.from('students').upsert({
-        profile_id: userId,
-        student_number: buildStudentNumber(),
-      }, { onConflict: 'profile_id' });
-      if (error) {
-        logAccountPhase(traceId, 'student_upsert_failed', {
-          message: error.message,
-          code: error.code,
-        });
-        if (isUniqueViolation(error)) {
-          return res.status(409).json({
-            message: 'That student account already exists.',
-            code: error.code ?? 'unique_violation',
-            traceId,
-          });
-        }
-        throw error;
-      }
-    }
-
-    if (role === 'teacher') {
-      logAccountPhase(traceId, 'upserting_teacher_row');
-      const { error } = await supabaseAdmin.from('teachers').upsert({
-        profile_id: userId,
-        employee_number: buildEmployeeNumber(),
-      }, { onConflict: 'profile_id' });
-      if (error) {
-        logAccountPhase(traceId, 'teacher_upsert_failed', {
-          message: error.message,
-          code: error.code,
-        });
-        if (isUniqueViolation(error)) {
-          return res.status(409).json({
-            message: 'That teacher account already exists.',
-            code: error.code ?? 'unique_violation',
-            traceId,
-          });
-        }
-        throw error;
-      }
-    }
+    logAccountPhase(traceId, 'syncing_role_membership');
+    await syncRoleMembership(userId, role);
 
     logAccountPhase(traceId, 'create_user_completed');
     res.status(201).json({
@@ -579,6 +570,8 @@ export async function createUser(req, res, next) {
         email,
         username,
         role,
+        full_name: fullName,
+        status: status || 'active',
       },
     });
   } catch (error) {

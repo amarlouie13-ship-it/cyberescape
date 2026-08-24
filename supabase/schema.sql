@@ -411,9 +411,9 @@ begin
   );
 
   v_status := case
-    when lower(coalesce(new.raw_user_meta_data ->> 'status', 'offline')) in ('online', 'offline')
+    when lower(coalesce(new.raw_user_meta_data ->> 'status', 'active')) in ('active', 'online', 'offline', 'inactive', 'suspended')
       then lower(new.raw_user_meta_data ->> 'status')::public.account_status
-    else 'offline'::public.account_status
+    else 'active'::public.account_status
   end;
 
   begin
@@ -490,9 +490,9 @@ begin
   );
 
   v_status := case
-    when lower(coalesce(new.raw_user_meta_data ->> 'status', 'offline')) in ('online', 'offline')
+    when lower(coalesce(new.raw_user_meta_data ->> 'status', 'active')) in ('active', 'online', 'offline', 'inactive', 'suspended')
       then lower(new.raw_user_meta_data ->> 'status')::public.account_status
-    else 'offline'::public.account_status
+    else 'active'::public.account_status
   end;
 
   begin

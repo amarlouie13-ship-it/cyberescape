@@ -36,7 +36,7 @@ export default function TeacherDashboard() {
   const loadSummary = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/api/dashboard/teacher/dashboard');
+      const { data } = await api.get('/dashboard/teacher/dashboard');
       setSummary(data ?? null);
     } finally {
       setLoading(false);

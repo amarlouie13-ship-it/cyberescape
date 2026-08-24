@@ -5,7 +5,6 @@ import DashboardShell from '../../components/common/DashboardShell';
 import SectionCard from '../../components/common/SectionCard';
 import StatCard from '../../components/common/StatCard';
 import { api } from '../../services/api';
-import { supabase } from '../../services/supabase';
 
 const emptyForm = {
   role: '',
@@ -114,8 +113,8 @@ export default function AddUserPage() {
     setLoading(true);
     try {
       const [usersRes, teachersRes] = await Promise.all([
-        api.get('/api/admin/users'),
-        api.get('/api/admin/teachers'),
+        api.get('/admin/users'),
+        api.get('/admin/teachers'),
       ]);
       setUsers(usersRes.data?.users ?? []);
       setTeachers(teachersRes.data?.teachers ?? []);
@@ -205,25 +204,19 @@ export default function AddUserPage() {
     setSubmitting(true);
     setMessage('');
     try {
-      if (!supabase) {
-        throw new Error('Supabase is not configured.');
-      }
-
-      const { data: signUpData, error } = await supabase.auth.signUp({
+      const { data } = await api.post('/admin/users', {
         email: form.email.trim().toLowerCase(),
         password: form.password,
-        options: {
-          data: {
-            role: form.role,
-            full_name: form.full_name,
-            username: form.username.trim().toLowerCase(),
-            assigned_teacher_id: form.role === 'student' ? form.assigned_teacher_id || '' : '',
-          },
-        },
+        confirmPassword: form.confirmPassword,
+        role: form.role,
+        full_name: form.full_name.trim(),
+        username: form.username.trim().toLowerCase(),
+        assigned_teacher_id: form.role === 'student' ? form.assigned_teacher_id || '' : '',
       });
 
-      if (error) throw error;
-      if (!signUpData?.user?.id) throw new Error('Supabase did not return a new user.');
+      if (!data?.user?.id) {
+        throw new Error('The server did not return a new user.');
+      }
 
       setShowAdd(false);
       setForm(emptyForm);
@@ -234,15 +227,15 @@ export default function AddUserPage() {
       await load();
       window.dispatchEvent(new CustomEvent('admin-users-updated'));
     } catch (error) {
-      const backendMessage = String(error?.response?.data?.message ?? '');
-      const backendDetails = String(error?.response?.data?.details ?? '');
-      const combinedMessage = [backendMessage, backendDetails]
+      const errorMessage = String(error?.message ?? '');
+      const errorDetails = String(error?.details ?? '');
+      const combinedMessage = [errorMessage, errorDetails]
         .filter(Boolean)
         .join(' | ');
       setErrors({
         submit:
-          backendMessage.includes('username') ? 'Username is already in use.' :
-          backendMessage.includes('email') ? 'Email is already registered.' :
+          errorMessage.includes('username') ? 'Username is already in use.' :
+          errorMessage.includes('email') ? 'Email is already registered.' :
           combinedMessage || error?.message || 'Unable to create user. Please check the information and try again.',
       });
     } finally {
@@ -252,7 +245,7 @@ export default function AddUserPage() {
 
   const saveEdit = async (event) => {
     event.preventDefault();
-    await api.put(`/api/admin/users/${editing.id}`, {
+    await api.put(`/admin/users/${editing.id}`, {
       full_name: editing.full_name,
       username: editing.username,
       email: editing.email,
@@ -265,7 +258,7 @@ export default function AddUserPage() {
 
   const resetProgress = async (user) => {
     if (!window.confirm('Reset Student Progress?\n\nThis will remove the student\'s room progress, scores, attempts, hints, and related gameplay progress. This action cannot be undone.')) return;
-    await api.delete(`/api/admin/users/${user.id}/progress`);
+    await api.delete(`/admin/users/${user.id}/progress`);
     setMessage('Student progress reset.');
     await load();
   };
@@ -519,7 +512,7 @@ export default function AddUserPage() {
                 <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                   <div className="flex flex-wrap gap-3">
                     <button type="button" onClick={() => setEditing(selected)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-white">Edit {selected.role === 'teacher' ? 'Teacher' : 'Student'}</button>
-                    <button type="button" onClick={() => api.put(`/api/admin/users/${selected.id}`, { status: selected.status === 'online' ? 'offline' : 'online' }).then(load)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-white">Toggle Online / Offline</button>
+                    <button type="button" onClick={() => api.put(`/admin/users/${selected.id}`, { status: selected.status === 'online' ? 'offline' : 'online' }).then(load)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-white">Toggle Online / Offline</button>
                     {selected.role === 'student' ? <button type="button" onClick={() => resetProgress(selected)} className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-2 text-rose-100">Reset Game Progress</button> : null}
                   </div>
                 </div>
